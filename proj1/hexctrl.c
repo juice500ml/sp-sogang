@@ -5,19 +5,19 @@
 #include <stdint.h>
 
 static inline bool
-is_inside (int val, int min, int max)
+is_inside (uint8_t val, uint8_t min, uint8_t max)
 {
   return val >= min && val <= max;
 }
 
 static inline bool
-is_printable (char c)
+is_printable (uint8_t c)
 {
-  return is_inside ((int) c, 0x20, 0x7E);
+  return is_inside (c, 0x20, 0x7E);
 }
 
 static void
-hexdump (void *mem, int start, int finish)
+hexdump (void *mem, uint8_t start, uint8_t finish)
 {
   uint8_t *umem = (uint8_t *) mem;
   int i,j;
@@ -34,7 +34,7 @@ hexdump (void *mem, int start, int finish)
           for(j=0; j<start%0x10; ++j)
             printf("   ");
           for(; j<=finish%0x10; ++j)
-            printf("%2X ", umem[i*0x10 + j]);
+            printf("%02X ", umem[i*0x10 + j]);
           for(; j<0x10; ++j)
             printf("   ");
         }
@@ -44,13 +44,13 @@ hexdump (void *mem, int start, int finish)
           for(j=0; j<start%0x10; ++j)
             printf("   ");
           for(; j<0x10; ++j)
-            printf("%2X ", umem[i*0x10 + j]);
+            printf("%02X ", umem[i*0x10 + j]);
         }
       // Finishers
       else if (i==finish/0x10)
         {
           for(j=0; j<=finish%0x10; ++j)
-            printf("%2X ", umem[i*0x10 + j]);
+            printf("%02X ", umem[i*0x10 + j]);
           for(; j<0x10; ++j)
             printf("   ");
         }
@@ -58,7 +58,7 @@ hexdump (void *mem, int start, int finish)
       else
         {
           for(j=0; j<0x10; ++j)
-            printf("%2X ", umem[i*0x10 + j]);
+            printf("%02X ", umem[i*0x10 + j]);
         }
 
       printf("; ");
@@ -68,7 +68,7 @@ hexdump (void *mem, int start, int finish)
         {
           if (is_inside(i*0x10 + j, start, finish)
               && is_printable(umem[i*0x10 + j]))
-            putchar((char)umem[i*0x10 + j]);
+            putchar(umem[i*0x10 + j]);
           else
             putchar('.');
         }
@@ -76,28 +76,43 @@ hexdump (void *mem, int start, int finish)
     }
 }
 
-int
-get_location (int c, bool update)
+uint32_t
+get_location (uint32_t c, bool update)
 {
-  static int curr = 0;
+  static uint32_t curr = 0;
   if (update)
     curr = c;
   return curr;
 }
 
 void
-autodump (void *mem, int size, int len)
+autodump (void *mem, uint32_t size, uint32_t len)
 {
-  int curr = get_location(0, false);
+  uint32_t curr = get_location(0, false);
 
-  if (len <= 0 || curr + len - 1 >= size)
+  if (curr + len - 1 >= size)
     {
       puts("OUT OF MEMORY BOUNDS.");
-      return;
     }
   else
     {
       hexdump (mem, curr, curr + len - 1);
       get_location(curr + len, true);
+    }
+}
+
+void
+hexfill (uint8_t *mem, uint32_t size,
+         uint32_t start, uint32_t end, uint8_t value)
+{
+  if (start > end || end >= size)
+    {
+      puts("OUT OF MEMORY BOUNDS.");
+    }
+  else
+    {
+      uint32_t i = 0;
+      for (i=start; i<=end; ++i)
+        mem[i] = value;
     }
 }

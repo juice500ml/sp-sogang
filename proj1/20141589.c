@@ -84,7 +84,9 @@ main(void)
   while (true)
     {
       struct q_elem *qe;
-      int i, start, end, value;
+      int i;
+      uint8_t value;
+      uint32_t start, end;
 
       printf("%s", __SHELL_FORM);
       get_chars(input, __INPUT_SIZE);
@@ -129,7 +131,7 @@ main(void)
           break;
         
         case CMD_DUMP:
-          switch(sscanf(input, "%s %d, %d", cmd, &start, &end))
+          switch(sscanf(input, "%s %x, %x", cmd, &start, &end))
             {
             case 1:
               autodump (mem, __MEMORY_SIZE, 0x10 * 10);
@@ -146,12 +148,25 @@ main(void)
           break;
         
         case CMD_EDIT:
+          switch(sscanf(input, "%s %x, %hhx",
+                        cmd, &start, &value))
+            {
+            case 3:
+              hexfill (mem, __MEMORY_SIZE, start, start, value);
+            }
           break;
         
         case CMD_FILL:
+          switch(sscanf(input, "%s %x, %x, %hhx",
+                        cmd, &start, &end, &value))
+            {
+            case 4:
+              hexfill (mem, __MEMORY_SIZE, start, end, value);
+            }
           break;
         
         case CMD_RESET:
+          hexfill (mem, __MEMORY_SIZE, 0, __MEMORY_SIZE - 1, 0);
           break;
         
         case CMD_OPCODE:
