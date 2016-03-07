@@ -14,14 +14,26 @@
 } while(0);
 #define _SAME_STR(s1,s2) (strcmp(s1,s2)==0)
 
+#define __CMD_FORMAT_SIZE 8
+#define __CMD_TABLE_SIZE 10
+#define __SHORT_CMD_TABLE_SIZE 7
+
 // FIXED VARIABLES
 static const int __INPUT_SIZE = 64;
+static const int __CMD_SIZE = 16;
 static const int __TABLE_SIZE = 20;
+static const char __CMD_FORMAT[__CMD_FORMAT_SIZE];
+static const char *__CMD_TABLE[__CMD_TABLE_SIZE] =\
+{"help", "dir", "quit", "history", "dump",\
+  "edit", "fill", "reset", "opcode", "opcodelist" };
+static const char *__SHORT_CMD_TABLE[__SHORT_CMD_TABLE_SIZE] =\
+{"h","d","q","hi","du","e","f"};
 static const char *__SHELL_FORM = "sicsim> ";
 static const char *__HELP_FORM = "h[elp]\nd[ir]\nq[uit]\nhi[story]\n\
 du[mp] [start, end]\ne[dit] address, \
 value\nf[ill] start, end, value\nreset\n\
 opcode mnemonic\nopcodelist\n";
+
 
 // Deletes every char input after size. 
 static bool
@@ -42,33 +54,13 @@ get_chars(char *input, int size)
 static int
 get_cmd_index(char *input)
 {
-  if (_SAME_STR("h", input)) return CMD_HELP;
-  if (_SAME_STR("help", input)) return CMD_HELP;
-  if (_SAME_STR("d", input)) return CMD_DIR;
-  if (_SAME_STR("dir", input)) return CMD_DIR;
-  if (_SAME_STR("q", input)) return CMD_QUIT;
-  if (_SAME_STR("quit", input)) return CMD_QUIT;
-  if (_SAME_STR("hi", input)) return CMD_HISTORY;
-  if (_SAME_STR("history", input)) return CMD_HISTORY;
-  if (input[0] == 'd' && input[1] == 'u'
-      && (input[2] == ' ' || input[2] == '\0')) return CMD_DUMP;
-  if (input[0] == 'd' && input[1] == 'u'
-      && input[2] == 'm' && input[3] == 'p'
-      && (input[4] == ' ' || input[4] == '\0')) return CMD_DUMP;
-  if (input[0] == 'e' && input[1] == ' ') return CMD_EDIT;
-  if (input[0] == 'e' && input[1] == 'd'
-      && input[2] == 'i' && input[3] == 't'
-      && input[4] == ' ') return CMD_EDIT;
-  if (input[0] == 'f' && input[1] == ' ') return CMD_FILL;
-  if (input[0] == 'f' && input[1] == 'i'
-      && input[2] == 'l' && input[3] == 'l'
-      && input[4] == ' ') return CMD_FILL;
-  if (_SAME_STR("reset", input)) return CMD_RESET;
-  if (input[0] == 'o' && input[1] == 'p'
-      && input[2] == 'c' && input[3] == 'o'
-      && input[4] == 'd' && input[5] == 'e'
-      && input[6] == ' ') return CMD_OPCODE;
-  if (_SAME_STR("opcodelist", input)) return CMD_OPCODELIST;
+  int i=0;
+  for (i=0; i<__CMD_TABLE_SIZE; ++i)
+    if (_SAME_STR(__CMD_TABLE[i], input))
+      return i;
+  for (i=0; i<__SHORT_CMD_TABLE_SIZE; ++i)
+    if (_SAME_STR(__SHORT_CMD_TABLE[i], input))
+      return i;
 
   return -1;
 }
@@ -81,7 +73,8 @@ main(void)
   q_init(&cmd_queue);
 
   char *input = malloc (sizeof(char)*__INPUT_SIZE);
-  if (input == NULL)
+  char *cmd = malloc (sizeof(char)*__CMD_SIZE);
+  if (input == NULL || cmd == NULL)
     goto memory_clear;
 
   // COMMAND PROCESSING
@@ -97,35 +90,64 @@ main(void)
       struct cmd_elem *e = malloc(sizeof(struct cmd_elem));
       if (e == NULL)
         goto memory_clear;
-      e->cmd = input;
+      e->cmd = malloc(sizeof(char)*(strlen(input)+1));
+      if (e->cmd == NULL)
+        goto memory_clear;
+      strcpy(e->cmd, input);
       q_insert (&cmd_queue, &(e->elem));
-      
-      switch(get_cmd_index(input))
+ 
+      // Formatting string
+      i = snprintf((char *) __CMD_FORMAT, __CMD_FORMAT_SIZE, "%%%ds", __CMD_SIZE-1);
+      if (i < 0 || i > __CMD_FORMAT_SIZE)
+        goto memory_clear;
+
+      sscanf(input, (const char *) __CMD_FORMAT, cmd);
+      switch(get_cmd_index(cmd))
         {
         case CMD_HELP:
           puts(__HELP_FORM);
           break;
+        
         case CMD_DIR:
           break;
+        
         case CMD_QUIT:
           goto memory_clear;
+        
         case CMD_HISTORY:
           qe = q_begin (&cmd_queue);
           i = 1;
           for (; qe!=q_end(&cmd_queue); qe=q_next(qe))
-            printf("%4d %s\n", i++, q_entry(qe, struct cmd_elem, elem)->cmd);
+            printf("%-4d %s\n", i++, q_entry(qe, struct cmd_elem, elem)->cmd);
+          break;
+        
+        case CMD_DUMP:
+          break;
+        
+        case CMD_EDIT:
+          break;
+        
+        case CMD_FILL:
+          break;
+        
+        case CMD_RESET:
+          break;
+        
+        case CMD_OPCODE:
+          break;
+        
+        case CMD_OPCODELIST:
           break;
         }
-
-      // Allocate new input string
-      input = malloc (sizeof(char)*__INPUT_SIZE);
-      if (input == NULL)
-        goto memory_clear;
     }
 
 
 memory_clear:
-  free(input);
+  if (input != NULL)
+    free (input);
+  if (cmd != NULL)
+    free (cmd);
+  // TODO: free cmd_queue
 
   return 0;
 }
