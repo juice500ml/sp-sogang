@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-c -Wall -O3
 LDFLAGS=
-SOURCES=20141589.c
+SOURCES=20141589.c queue.c
 EXECUTABLE=20141589.out
 OBJECTS=$(SOURCES:.c=.o)
 
@@ -10,7 +10,7 @@ all: $(SOURCES) $(EXECUTABLE)
 $(EXECUTABLE): $(OBJECTS) 
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
 
-.cpp.o:
+.c.o:
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
