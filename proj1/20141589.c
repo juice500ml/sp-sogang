@@ -33,11 +33,12 @@ get_chars(char *input, int size)
   while ( (c=getchar()) != EOF && c != '\n' && c != '\0' )
     if(i < size-1) input[i++] = c;
   input[i] = '\0';
+  while(input[i-1] == ' ')
+    input[--i] = '\0';
 
   return c != EOF;
 }
 
-// WARNING: COMMAND DEPENDENCIES EXISTENT
 static int
 get_cmd_index(char *input)
 {
@@ -45,14 +46,28 @@ get_cmd_index(char *input)
   if (_SAME_STR("help", input)) return CMD_HELP;
   if (_SAME_STR("d", input)) return CMD_DIR;
   if (_SAME_STR("dir", input)) return CMD_DIR;
+  if (_SAME_STR("q", input)) return CMD_QUIT;
   if (_SAME_STR("quit", input)) return CMD_QUIT;
   if (_SAME_STR("hi", input)) return CMD_HISTORY;
   if (_SAME_STR("history", input)) return CMD_HISTORY;
-  if (input[0] == 'd') return CMD_DUMP;
-  if (input[0] == 'e') return CMD_EDIT;
-  if (input[0] == 'f') return CMD_FILL;
+  if (input[0] == 'd' && input[1] == 'u'
+      && (input[2] == ' ' || input[2] == '\0')) return CMD_DUMP;
+  if (input[0] == 'd' && input[1] == 'u'
+      && input[2] == 'm' && input[3] == 'p'
+      && (input[4] == ' ' || input[4] == '\0')) return CMD_DUMP;
+  if (input[0] == 'e' && input[1] == ' ') return CMD_EDIT;
+  if (input[0] == 'e' && input[1] == 'd'
+      && input[2] == 'i' && input[3] == 't'
+      && input[4] == ' ') return CMD_EDIT;
+  if (input[0] == 'f' && input[1] == ' ') return CMD_FILL;
+  if (input[0] == 'f' && input[1] == 'i'
+      && input[2] == 'l' && input[3] == 'l'
+      && input[4] == ' ') return CMD_FILL;
   if (_SAME_STR("reset", input)) return CMD_RESET;
-  if (input[0] == 'o') return CMD_OPCODE;
+  if (input[0] == 'o' && input[1] == 'p'
+      && input[2] == 'c' && input[3] == 'o'
+      && input[4] == 'd' && input[5] == 'e'
+      && input[6] == ' ') return CMD_OPCODE;
   if (_SAME_STR("opcodelist", input)) return CMD_OPCODELIST;
 
   return -1;
