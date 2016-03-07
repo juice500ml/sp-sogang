@@ -15,7 +15,7 @@
 } while(0);
 #define _SAME_STR(s1,s2) (strcmp(s1,s2)==0)
 
-#define __CMD_FORMAT_SIZE 8
+#define __CMD_FORMAT_SIZE 16
 #define __CMD_TABLE_SIZE 10
 #define __SHORT_CMD_TABLE_SIZE 7
 
@@ -39,7 +39,7 @@ reset\nopcode mnemonic\nopcodelist";
 
 // Deletes every char input after size. 
 static bool
-get_chars(char *input, int size)
+get_chars (char *input, int size)
 {
   int i = 0;
   char c;
@@ -54,7 +54,7 @@ get_chars(char *input, int size)
 }
 
 static int
-get_cmd_index(char *input)
+get_cmd_index (char *input)
 {
   int i=0;
   for (i=0; i<__CMD_TABLE_SIZE; ++i)
@@ -67,24 +67,75 @@ get_cmd_index(char *input)
   return -1;
 }
 
+static uint64_t
+str_hash (char *str)
+{
+  // Reference: djb2 by Dan Bernstein (York Univ.)
+  uint64_t c, hash = 5381;
+
+  while ((c = *str++)!='\0')
+    hash = ((hash << 5) + hash) + c;
+
+  return hash;
+}
+
 int
 main(void)
 {
   // INITIALIZING
   struct queue cmd_queue;
-  q_init(&cmd_queue);
+  q_init (&cmd_queue);
 
-  uint8_t *mem = calloc(__MEMORY_SIZE, sizeof(uint8_t));
+  uint8_t *mem = calloc (__MEMORY_SIZE, sizeof(uint8_t));
+  struct queue *oplist = malloc (sizeof(struct queue)
+                                 * __TABLE_SIZE);
   char *input = malloc (sizeof(char)*__INPUT_SIZE);
   char *cmd = malloc (sizeof(char)*__CMD_SIZE);
-  if (mem == NULL || input == NULL || cmd == NULL)
+  if (mem == NULL || input == NULL
+      || cmd == NULL || oplist == NULL)
     goto memory_clear;
+
+  // OPCODE READ
+  int i;
+  for (i=0; i<__TABLE_SIZE; ++i)
+    q_init (&oplist[i]);
+
+  FILE * fp = fopen("opcode.txt", "r");
+  if (fp == NULL)
+    goto memory_clear;
+
+  // Formatting string
+  i = snprintf((char *) __CMD_FORMAT, __CMD_FORMAT_SIZE,
+               "%%hhx %%%ds %%s", __CMD_SIZE - 1);
+  if (i < 0 || i > __CMD_FORMAT_SIZE)
+    goto memory_clear;
+
+  while (fgets(input, __INPUT_SIZE, fp) != NULL)
+    {
+      uint8_t code;
+      char form[__OPCODE_FORMAT_SIZE];
+      sscanf(input, (const char *) __CMD_FORMAT,
+             &code, cmd, &form);
+      
+      // Saving opcode
+      struct op_elem *oe = malloc(sizeof(struct op_elem));
+      if (oe == NULL)
+        goto memory_clear;
+      oe->opcode = malloc(sizeof(char)*(strlen(cmd)+1));
+      if(oe->opcode == NULL)
+        goto memory_clear;
+      strcpy(oe->opcode, cmd);
+      strcpy(oe->format, form);
+      oe->code = code;
+
+      code = str_hash (cmd) % __TABLE_SIZE;
+      q_insert (&oplist[code], &(oe->elem));
+    }
 
   // COMMAND PROCESSING
   while (true)
     {
       struct q_elem *qe;
-      int i;
       uint8_t value;
       uint32_t start, end;
 
@@ -102,11 +153,8 @@ main(void)
       q_insert (&cmd_queue, &(e->elem));
  
       // Processing input string
-      // Formatting string
-      i = snprintf((char *) __CMD_FORMAT,
-                   __CMD_FORMAT_SIZE, "%%%ds", __CMD_SIZE-1);
-      if (i < 0 || i > __CMD_FORMAT_SIZE)
-        goto memory_clear;
+      snprintf((char *) __CMD_FORMAT, __CMD_FORMAT_SIZE,
+                   "%%%ds", __CMD_SIZE - 1);
       sscanf(input, (const char *) __CMD_FORMAT, cmd);
       
       // Switching with commands
@@ -153,6 +201,7 @@ main(void)
             {
             case 3:
               hexfill (mem, __MEMORY_SIZE, start, start, value);
+              break;
             }
           break;
         
@@ -162,6 +211,7 @@ main(void)
             {
             case 4:
               hexfill (mem, __MEMORY_SIZE, start, end, value);
+              break;
             }
           break;
         
@@ -170,9 +220,49 @@ main(void)
           break;
         
         case CMD_OPCODE:
+           switch(sscanf(input, "%*s %s", cmd))
+            {
+            case 1:
+              i = str_hash(cmd) % __TABLE_SIZE;
+              if (!q_empty(&oplist[i]))
+                {
+                  qe = q_begin (&oplist[i]);
+                  for(; qe != q_end(&oplist[i]); qe = q_next(qe))
+                    {
+                      struct op_elem *oe
+                        = q_entry (qe, struct op_elem, elem);
+                      if (_SAME_STR(cmd, oe->opcode))
+                        {
+                          printf("opcode is %2X\n", oe->code);
+                          break;
+                        }
+                    }
+                }
+              break;
+            }
+
           break;
         
         case CMD_OPCODELIST:
+          for(i=0; i<__TABLE_SIZE; ++i)
+            {
+              printf("%d : ", i);
+              if (!q_empty(&oplist[i]))
+                {
+                  qe = q_begin (&oplist[i]);
+                  struct op_elem *oe
+                    = q_entry (qe, struct op_elem, elem);
+                  printf ("[%s:%02X] ", oe->opcode, oe->code);
+                  for(qe = q_next(qe); qe != q_end(&oplist[i]);
+                      qe = q_next(qe))
+                    {
+                      oe = q_entry (qe, struct op_elem, elem);
+                      printf ("-> [%s:%02X] ",
+                              oe->opcode, oe->code);
+                    }
+                }
+              puts("");
+            }
           break;
         }
     }
@@ -189,9 +279,23 @@ memory_clear:
     {
       struct q_elem *e = q_delete(&cmd_queue);
       struct cmd_elem *ce = q_entry(e, struct cmd_elem, elem);
-      free(ce->cmd);
+      if (ce->cmd != NULL)
+        free(ce->cmd);
       free(ce);
     }
+  for(i=0; i<__TABLE_SIZE; ++i)
+    {
+      while(!q_empty(&oplist[i]))
+        {
+          struct q_elem *e = q_delete(&oplist[i]);
+          struct op_elem *oe = q_entry(e, struct op_elem, elem);
+          if (oe->opcode != NULL)
+            free(oe->opcode);
+          free(oe);
+        }
+    }
+  if (oplist != NULL)
+    free (oplist);
 
   return 0;
 }
