@@ -45,7 +45,7 @@ q_delete (struct queue *q)
   struct q_elem *e = q_begin (q);
   e->prev->next = e->next;
   e->next->prev = e->prev;
-  return e->next;
+  return e;
 }
 
 bool

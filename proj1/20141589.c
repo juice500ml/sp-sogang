@@ -96,12 +96,14 @@ main(void)
       strcpy(e->cmd, input);
       q_insert (&cmd_queue, &(e->elem));
  
+      // Processing input string
       // Formatting string
       i = snprintf((char *) __CMD_FORMAT, __CMD_FORMAT_SIZE, "%%%ds", __CMD_SIZE-1);
       if (i < 0 || i > __CMD_FORMAT_SIZE)
         goto memory_clear;
-
       sscanf(input, (const char *) __CMD_FORMAT, cmd);
+      
+      // Switching with commands
       switch(get_cmd_index(cmd))
         {
         case CMD_HELP:
@@ -147,7 +149,13 @@ memory_clear:
     free (input);
   if (cmd != NULL)
     free (cmd);
-  // TODO: free cmd_queue
+  while(!q_empty(&cmd_queue))
+    {
+      struct q_elem *e = q_delete(&cmd_queue);
+      struct cmd_elem *ce = q_entry(e, struct cmd_elem, elem);
+      free(ce->cmd);
+      free(ce);
+    }
 
   return 0;
 }
