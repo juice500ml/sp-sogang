@@ -1,7 +1,7 @@
 #ifndef __20141589_H__
 #define __20141589_H__
 
-#include "stack.h"
+#include "queue.h"
 
 enum cmd_flags
 {
@@ -20,7 +20,7 @@ enum cmd_flags
 struct cmd_elem
 {
   char *cmd;
-  struct s_elem elem;
+  struct q_elem elem;
 };
 
 #endif
