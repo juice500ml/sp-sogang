@@ -25,6 +25,7 @@ static const int __INPUT_SIZE = 64;
 static const int __CMD_SIZE = 16;
 static const int __TABLE_SIZE = 20;
 static const char __CMD_FORMAT[__CMD_FORMAT_SIZE];
+static const char *__OPCODE_FILENAME = "opcode.txt";
 static const char *__CMD_TABLE[__CMD_TABLE_SIZE] =\
 {"help", "dir", "quit", "history", "dump",\
   "edit", "fill", "reset", "opcode", "opcodelist" };
@@ -93,37 +94,56 @@ main(void)
   char *cmd = malloc (sizeof(char)*__CMD_SIZE);
   if (mem == NULL || input == NULL
       || cmd == NULL || oplist == NULL)
-    goto memory_clear;
+    {
+      puts("MEMORY INSUFFICIENT.");
+      goto memory_clear;
+    }
 
   // OPCODE READ
   int i;
   for (i=0; i<__TABLE_SIZE; ++i)
     q_init (&oplist[i]);
 
-  FILE * fp = fopen("opcode.txt", "r");
+  FILE * fp = fopen(__OPCODE_FILENAME, "r");
   if (fp == NULL)
-    goto memory_clear;
+    {
+      printf("%s NOT FOUND.\n", __OPCODE_FILENAME);
+      goto memory_clear;
+    }
 
   // Formatting string
   i = snprintf((char *) __CMD_FORMAT, __CMD_FORMAT_SIZE,
                "%%hhx %%%ds %%s", __CMD_SIZE - 1);
   if (i < 0 || i > __CMD_FORMAT_SIZE)
-    goto memory_clear;
+    {
+      puts("COMMAND SIZE IS TOO BIG.");
+      goto memory_clear;
+    }
 
   while (fgets(input, __INPUT_SIZE, fp) != NULL)
     {
       uint8_t code;
       char form[__OPCODE_FORMAT_SIZE];
-      sscanf(input, (const char *) __CMD_FORMAT,
-             &code, cmd, &form);
+      if (sscanf(input, (const char *) __CMD_FORMAT,
+             &code, cmd, &form) != 3)
+        {
+          printf("%s is broken.\n", __OPCODE_FILENAME);
+          goto memory_clear;
+        }
       
       // Saving opcode
       struct op_elem *oe = malloc(sizeof(struct op_elem));
       if (oe == NULL)
-        goto memory_clear;
+        {
+          puts("MEMORY INSUFFICIENT.");
+          goto memory_clear;
+        }
       oe->opcode = malloc(sizeof(char)*(strlen(cmd)+1));
       if(oe->opcode == NULL)
-        goto memory_clear;
+        {
+          puts("MEMORY INSUFFICIENT.");
+          goto memory_clear;
+        }
       strcpy(oe->opcode, cmd);
       strcpy(oe->format, form);
       oe->code = code;
@@ -145,10 +165,16 @@ main(void)
       // Saving commands
       struct cmd_elem *e = malloc(sizeof(struct cmd_elem));
       if (e == NULL)
-        goto memory_clear;
+        {
+          puts("MEMORY INSUFFICIENT.");
+          goto memory_clear;
+        }
       e->cmd = malloc(sizeof(char)*(strlen(input)+1));
       if (e->cmd == NULL)
-        goto memory_clear;
+        {
+          puts("MEMORY INSUFFICIENT.");
+          goto memory_clear;
+        }
       strcpy(e->cmd, input);
       q_insert (&cmd_queue, &(e->elem));
  
