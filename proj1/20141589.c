@@ -1,5 +1,6 @@
 #include "20141589.h"
 #include "queue.h"
+#include "hexctrl.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +20,7 @@
 #define __SHORT_CMD_TABLE_SIZE 7
 
 // FIXED VARIABLES
+static const int __MEMORY_SIZE = 1<<20;
 static const int __INPUT_SIZE = 64;
 static const int __CMD_SIZE = 16;
 static const int __TABLE_SIZE = 20;
@@ -29,10 +31,10 @@ static const char *__CMD_TABLE[__CMD_TABLE_SIZE] =\
 static const char *__SHORT_CMD_TABLE[__SHORT_CMD_TABLE_SIZE] =\
 {"h","d","q","hi","du","e","f"};
 static const char *__SHELL_FORM = "sicsim> ";
-static const char *__HELP_FORM = "h[elp]\nd[ir]\nq[uit]\nhi[story]\n\
-du[mp] [start, end]\ne[dit] address, \
-value\nf[ill] start, end, value\nreset\n\
-opcode mnemonic\nopcodelist\n";
+static const char *__HELP_FORM = "h[elp]\nd[ir]\nq[uit]\n\
+hi[story]\ndu[mp] [start, end]\ne[dit] \
+address, value\nf[ill] start, end, value\n\
+reset\nopcode mnemonic\nopcodelist";
 
 
 // Deletes every char input after size. 
@@ -72,16 +74,17 @@ main(void)
   struct queue cmd_queue;
   q_init(&cmd_queue);
 
+  uint8_t *mem = calloc(__MEMORY_SIZE, sizeof(uint8_t));
   char *input = malloc (sizeof(char)*__INPUT_SIZE);
   char *cmd = malloc (sizeof(char)*__CMD_SIZE);
-  if (input == NULL || cmd == NULL)
+  if (mem == NULL || input == NULL || cmd == NULL)
     goto memory_clear;
 
   // COMMAND PROCESSING
   while (true)
     {
-      struct q_elem *qe = NULL;
-      int i = 0;
+      struct q_elem *qe;
+      int i, start, end, value;
 
       printf("%s", __SHELL_FORM);
       get_chars(input, __INPUT_SIZE);
@@ -98,7 +101,8 @@ main(void)
  
       // Processing input string
       // Formatting string
-      i = snprintf((char *) __CMD_FORMAT, __CMD_FORMAT_SIZE, "%%%ds", __CMD_SIZE-1);
+      i = snprintf((char *) __CMD_FORMAT,
+                   __CMD_FORMAT_SIZE, "%%%ds", __CMD_SIZE-1);
       if (i < 0 || i > __CMD_FORMAT_SIZE)
         goto memory_clear;
       sscanf(input, (const char *) __CMD_FORMAT, cmd);
@@ -120,10 +124,25 @@ main(void)
           qe = q_begin (&cmd_queue);
           i = 1;
           for (; qe!=q_end(&cmd_queue); qe=q_next(qe))
-            printf("%-4d %s\n", i++, q_entry(qe, struct cmd_elem, elem)->cmd);
+            printf("%-4d %s\n", i++,
+                   q_entry(qe, struct cmd_elem, elem)->cmd);
           break;
         
         case CMD_DUMP:
+          switch(sscanf(input, "%s %d, %d", cmd, &start, &end))
+            {
+            case 1:
+              autodump (mem, __MEMORY_SIZE, 0x10 * 10);
+              break;
+            case 2:
+              get_location (start, true);
+              autodump (mem, __MEMORY_SIZE, 0x10 * 10);
+              break;
+            case 3:
+              get_location (start, true);
+              autodump (mem, __MEMORY_SIZE, end - start + 1);
+              break;
+            }
           break;
         
         case CMD_EDIT:
@@ -145,6 +164,8 @@ main(void)
 
 
 memory_clear:
+  if (mem != NULL)
+    free (mem);
   if (input != NULL)
     free (input);
   if (cmd != NULL)
