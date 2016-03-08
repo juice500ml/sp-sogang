@@ -161,6 +161,7 @@ main(void)
       uint32_t start, end;
       DIR *dirp = NULL;
       struct dirent *dir = NULL;
+      char check[2];
 
       printf("%s", __SHELL_FORM);
       if (!get_chars(input, __INPUT_SIZE))
@@ -192,10 +193,20 @@ main(void)
       switch(get_cmd_index(cmd))
         {
         case CMD_HELP:
+          if(sscanf(input, "%*s %1s", check) == 1)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
           puts(__HELP_FORM);
           break;
         
         case CMD_DIR:
+          if(sscanf(input, "%*s %1s", check) == 1)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
           i = 1;
           dirp = opendir(".");
           dir = readdir(dirp);
@@ -227,9 +238,19 @@ main(void)
           break;
         
         case CMD_QUIT:
+          if(sscanf(input, "%*s %1s", check) == 1)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
           goto memory_clear;
         
         case CMD_HISTORY:
+          if(sscanf(input, "%*s %1s", check) == 1)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
           qe = q_begin (&cmd_queue);
           i = 1;
           for (; qe!=q_end(&cmd_queue); qe=q_next(qe))
@@ -241,25 +262,46 @@ main(void)
           switch(sscanf(input, "%s %x, %x", cmd, &start, &end))
             {
             case 1:
+              if(sscanf(input, "%*s %1s", check) == 1)
+                {
+                  puts("WRONG INSTRUCTION");
+                  break;
+                }
               autodump (mem, __MEMORY_SIZE, 0x10 * 10);
               break;
+            
             case 2:
+              if(sscanf(input, "%*s %*x %1s", check) == 1)
+                {
+                  puts("WRONG INSTRUCTION");
+                  break;
+                }
               if (!(start < __MEMORY_SIZE))
-                puts("OUT OF MEMORY BOUNDS.");
-              else 
                 {
-                  get_location (start, true);
-                  autodump (mem, __MEMORY_SIZE, 0x10 * 10);
+                  puts("OUT OF MEMORY BOUNDS.");
+                  break;
                 }
+              get_location (start, true);
+              autodump (mem, __MEMORY_SIZE, 0x10 * 10);
               break;
+            
             case 3:
-              if (!(start<=end && end<__MEMORY_SIZE))
-                puts("OUT OF MEMORY BOUNDS.");
-              else 
+              if(sscanf(input, "%*s %*x, %*x %1s", check) == 1)
                 {
-                  get_location (start, true);
-                  autodump (mem, __MEMORY_SIZE, end - start + 1);
+                  puts("WRONG INSTRUCTION");
+                  break;
                 }
+              if (!(start<=end && end<__MEMORY_SIZE))
+                {
+                  puts("OUT OF MEMORY BOUNDS.");
+                  break;
+                }
+              get_location (start, true);
+              autodump (mem, __MEMORY_SIZE, end - start + 1);
+              break;
+
+            default:
+              puts("WRONG INSTRUCTION");
               break;
             }
           break;
@@ -269,7 +311,16 @@ main(void)
                         cmd, &start, &value))
             {
             case 3:
+              if(sscanf(input, "%*s %*x, %*x %1s", check) == 1)
+                {
+                  puts("WRONG INSTRUCTION");
+                  break;
+                }
               hexfill (mem, __MEMORY_SIZE, start, start, value);
+              break;
+            
+            default:
+              puts("WRONG INSTRUCTION");
               break;
             }
           break;
@@ -279,19 +330,39 @@ main(void)
                         cmd, &start, &end, &value))
             {
             case 4:
+              if(sscanf(input,
+                        "%*s %*x, %*x, %*x %1s", check) == 1)
+                {
+                  puts("WRONG INSTRUCTION");
+                  break;
+                }
               hexfill (mem, __MEMORY_SIZE, start, end, value);
+              break;
+            
+            default:
+              puts("WRONG INSTRUCTION");
               break;
             }
           break;
-        
+
         case CMD_RESET:
+          if(sscanf(input, "%*s %1s", check) == 1)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
           hexfill (mem, __MEMORY_SIZE, 0, __MEMORY_SIZE - 1, 0);
           break;
-        
+
         case CMD_OPCODE:
-           switch(sscanf(input, "%*s %s", cmd))
+          switch(sscanf(input, "%*s %s", cmd))
             {
             case 1:
+              if(sscanf(input, "%*s %*s %1s", check) == 1)
+                {
+                  puts("WRONG INSTRUCTION");
+                  break;
+                }
               i = str_hash(cmd) % __TABLE_SIZE;
               if (!q_empty(&oplist[i]))
                 {
@@ -308,11 +379,19 @@ main(void)
                     }
                 }
               break;
-            }
 
+            default:
+              puts("WRONG INSTRUCTION");
+              break;
+            }
           break;
-        
+
         case CMD_OPCODELIST:
+          if(sscanf(input, "%*s %1s", check) == 1)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
           for(i=0; i<__TABLE_SIZE; ++i)
             {
               printf("%d : ", i);
@@ -333,6 +412,13 @@ main(void)
               puts("");
             }
           break;
+
+        default:
+          if(sscanf(input, "%1s", check) == 1)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
         }
     }
 
