@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 static inline bool
-is_inside (uint8_t val, uint8_t min, uint8_t max)
+is_inside (uint32_t val, uint32_t min, uint32_t max)
 {
   return val >= min && val <= max;
 }
@@ -17,10 +17,10 @@ is_printable (uint8_t c)
 }
 
 static void
-hexdump (void *mem, uint8_t start, uint8_t finish)
+hexdump (void *mem, uint32_t start, uint32_t finish)
 {
   uint8_t *umem = (uint8_t *) mem;
-  int i,j;
+  uint32_t i,j;
   
   for(i=start/0x10; i<=finish/0x10; ++i)
     {

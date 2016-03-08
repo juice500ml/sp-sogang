@@ -11,10 +11,6 @@
 #include <sys/stat.h>
 
 // MACRO FUNCTIONS
-#define _ERROR_EXIT(s,i) do{\
-    perror(s);\
-    exit(i);\
-} while(0);
 #define _SAME_STR(s1,s2) (strcmp(s1,s2)==0)
 
 #define __CMD_FORMAT_SIZE 16
@@ -50,7 +46,11 @@ get_chars (char *input, int size)
   while ( (c=getchar()) != EOF && c != '\n' && c != '\0' )
     if(i < size-1) input[i++] = c;
   input[i] = '\0';
-  while(input[i-1] == ' ')
+
+  if(i==0)
+    return true;
+
+  while(input[i-1] == ' ' || input[i-1] == '\t')
     input[--i] = '\0';
 
   return c != EOF;
@@ -122,6 +122,7 @@ main(void)
       goto memory_clear;
     }
 
+  // opcode hash table generation
   while (fgets(input, __INPUT_SIZE, fp) != NULL)
     {
       uint8_t code;
@@ -186,7 +187,8 @@ main(void)
       // Processing input string
       snprintf((char *) __CMD_FORMAT, __CMD_FORMAT_SIZE,
                    "%%%ds", __CMD_SIZE - 1);
-      sscanf(input, (const char *) __CMD_FORMAT, cmd);
+      if (sscanf(input, (const char *) __CMD_FORMAT, cmd)!=1)
+        cmd[0] = '\0';
       
       // Switching with commands
       switch(get_cmd_index(cmd))
