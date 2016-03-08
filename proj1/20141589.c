@@ -164,7 +164,8 @@ main(void)
       struct dirent *dir = NULL;
 
       printf("%s", __SHELL_FORM);
-      get_chars(input, __INPUT_SIZE);
+      if (!get_chars(input, __INPUT_SIZE))
+        goto memory_clear;
 
       // Saving commands
       struct cmd_elem *e = malloc(sizeof(struct cmd_elem));
@@ -216,7 +217,7 @@ main(void)
                  || (st.st_mode & S_IXGRP)
                  || (st.st_mode & S_IXOTH) )
                 putchar('*');
-              printf("\t\t");
+              printf("   ");
               
               if((i++)%5==0)
                 putchar('\n');
