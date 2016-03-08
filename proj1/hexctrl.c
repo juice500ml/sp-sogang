@@ -90,7 +90,7 @@ autodump (void *mem, uint32_t size, uint32_t len)
 {
   uint32_t curr = get_location(0, false);
 
-  if (curr + len - 1 >= size)
+  if (curr >= size || curr + len - 1 >= size)
     {
       puts("OUT OF MEMORY BOUNDS.");
     }

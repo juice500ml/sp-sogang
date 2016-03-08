@@ -47,11 +47,9 @@ get_chars (char *input, int size)
     if(i < size-1) input[i++] = c;
   input[i] = '\0';
 
-  if(i==0)
-    return true;
-
-  while(input[i-1] == ' ' || input[i-1] == '\t')
-    input[--i] = '\0';
+  if(i>0)
+    while(input[i-1] == ' ' || input[i-1] == '\t')
+      input[--i] = '\0';
 
   return c != EOF;
 }
@@ -246,12 +244,22 @@ main(void)
               autodump (mem, __MEMORY_SIZE, 0x10 * 10);
               break;
             case 2:
-              get_location (start, true);
-              autodump (mem, __MEMORY_SIZE, 0x10 * 10);
+              if (!(start < __MEMORY_SIZE))
+                puts("OUT OF MEMORY BOUNDS.");
+              else 
+                {
+                  get_location (start, true);
+                  autodump (mem, __MEMORY_SIZE, 0x10 * 10);
+                }
               break;
             case 3:
-              get_location (start, true);
-              autodump (mem, __MEMORY_SIZE, end - start + 1);
+              if (!(start<=end && end<__MEMORY_SIZE))
+                puts("OUT OF MEMORY BOUNDS.");
+              else 
+                {
+                  get_location (start, true);
+                  autodump (mem, __MEMORY_SIZE, end - start + 1);
+                }
               break;
             }
           break;
