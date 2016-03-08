@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdint.h>
+#include <dirent.h>
+#include <sys/stat.h>
 
 // MACRO FUNCTIONS
 #define _ERROR_EXIT(s,i) do{\
@@ -158,6 +160,8 @@ main(void)
       struct q_elem *qe;
       uint8_t value;
       uint32_t start, end;
+      DIR *dirp = NULL;
+      struct dirent *dir = NULL;
 
       printf("%s", __SHELL_FORM);
       get_chars(input, __INPUT_SIZE);
@@ -191,6 +195,34 @@ main(void)
           break;
         
         case CMD_DIR:
+          i = 1;
+          dirp = opendir(".");
+          dir = readdir(dirp);
+          for(; dir!=NULL; dir = readdir(dirp))
+            {
+              struct stat st;
+              if(stat((const char*) dir->d_name, &st)!=0)
+                {
+                  puts("FILE NOT FOUND");
+                  goto memory_clear;
+                }
+              if(_SAME_STR(dir->d_name, ".")
+                 || _SAME_STR(dir->d_name, ".."))
+                continue;
+              printf("%s", dir->d_name);
+              if(S_ISDIR(st.st_mode))
+                putchar('/');
+              else if( (st.st_mode & S_IXUSR)
+                 || (st.st_mode & S_IXGRP)
+                 || (st.st_mode & S_IXOTH) )
+                putchar('*');
+              printf("\t\t");
+              
+              if((i++)%5==0)
+                putchar('\n');
+            }
+          if((i-1)%5!=0)
+            putchar('\n');
           break;
         
         case CMD_QUIT:
