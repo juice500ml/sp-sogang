@@ -40,9 +40,9 @@ reset\nopcode mnemonic\nopcodelist";
 static bool
 get_chars (char *input, int size)
 {
-  int i = 0;
-  char c;
+  int i, c;
 
+  i = 0;
   while ( (c=getchar()) != EOF && c != '\n' && c != '\0' )
     if(i < size-1) input[i++] = c;
   input[i] = '\0';
