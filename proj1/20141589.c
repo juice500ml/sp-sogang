@@ -259,7 +259,7 @@ main(void)
           break;
         
         case CMD_DUMP:
-          switch(sscanf(input, "%s %x, %x", cmd, &start, &end))
+          switch(sscanf(input, "%s %x , %x", cmd, &start, &end))
             {
             case 1:
               if(sscanf(input, "%*s %1s", check) == 1)
@@ -286,7 +286,7 @@ main(void)
               break;
             
             case 3:
-              if(sscanf(input, "%*s %*x, %*x %1s", check) == 1)
+              if(sscanf(input, "%*s %*x , %*x %1s", check) == 1)
                 {
                   puts("WRONG INSTRUCTION");
                   break;
@@ -307,11 +307,11 @@ main(void)
           break;
         
         case CMD_EDIT:
-          switch(sscanf(input, "%s %x, %hhx",
+          switch(sscanf(input, "%s %x , %hhx",
                         cmd, &start, &value))
             {
             case 3:
-              if(sscanf(input, "%*s %*x, %*x %1s", check) == 1)
+              if(sscanf(input, "%*s %*x , %*x %1s", check) == 1)
                 {
                   puts("WRONG INSTRUCTION");
                   break;
@@ -326,12 +326,12 @@ main(void)
           break;
         
         case CMD_FILL:
-          switch(sscanf(input, "%s %x, %x, %hhx",
+          switch(sscanf(input, "%s %x , %x , %hhx",
                         cmd, &start, &end, &value))
             {
             case 4:
               if(sscanf(input,
-                        "%*s %*x, %*x, %*x %1s", check) == 1)
+                        "%*s %*x , %*x , %*x %1s", check) == 1)
                 {
                   puts("WRONG INSTRUCTION");
                   break;
