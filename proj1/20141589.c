@@ -36,7 +36,7 @@ address, value\nf[ill] start, end, value\n\
 reset\nopcode mnemonic\nopcodelist";
 
 
-// Deletes every char input after size. 
+// Deletes every char input after size.
 static bool
 get_chars (char *input, int size)
 {
@@ -47,6 +47,7 @@ get_chars (char *input, int size)
     if(i < size-1) input[i++] = c;
   input[i] = '\0';
 
+  // delete trailing whitespace
   if(i>0)
     while(input[i-1] == ' ' || input[i-1] == '\t')
       input[--i] = '\0';
@@ -54,6 +55,7 @@ get_chars (char *input, int size)
   return c != EOF;
 }
 
+// Get command index (same with enum cmd_flags) 
 static int
 get_cmd_index (char *input)
 {
@@ -68,6 +70,7 @@ get_cmd_index (char *input)
   return -1;
 }
 
+// Hash function for char string
 static uint64_t
 str_hash (char *str)
 {
@@ -104,6 +107,7 @@ main(void)
   for (i=0; i<__TABLE_SIZE; ++i)
     q_init (&oplist[i]);
 
+  // Open file for opcode reference
   FILE * fp = fopen(__OPCODE_FILENAME, "r");
   if (fp == NULL)
     {
@@ -222,14 +226,15 @@ main(void)
                  || _SAME_STR(dir->d_name, ".."))
                 continue;
               printf("%s", dir->d_name);
-              if(S_ISDIR(st.st_mode))
+              if(S_ISDIR(st.st_mode)) // is Directory?
                 putchar('/');
-              else if( (st.st_mode & S_IXUSR)
+              else if( (st.st_mode & S_IXUSR) // is exe?
                  || (st.st_mode & S_IXGRP)
                  || (st.st_mode & S_IXOTH) )
                 putchar('*');
               printf("   ");
-              
+             
+              // print newline after 5 elements
               if((i++)%5==0)
                 putchar('\n');
             }
@@ -253,6 +258,7 @@ main(void)
             }
           qe = q_begin (&cmd_queue);
           i = 1;
+          // print every formatted history
           for (; qe!=q_end(&cmd_queue); qe=q_next(qe))
             printf("%-4d %s\n", i++,
                    q_entry(qe, struct cmd_elem, elem)->cmd);
@@ -366,6 +372,7 @@ main(void)
               i = str_hash(cmd) % __TABLE_SIZE;
               if (!q_empty(&oplist[i]))
                 {
+                  bool found = false;
                   qe = q_begin (&oplist[i]);
                   for(; qe != q_end(&oplist[i]); qe = q_next(qe))
                     {
@@ -374,10 +381,14 @@ main(void)
                       if (_SAME_STR(cmd, oe->opcode))
                         {
                           printf("opcode is %2X\n", oe->code);
+                          found = true;
                           break;
                         }
                     }
+                  if (found)
+                    break;
                 }
+              puts("NO SUCH OPCODE");
               break;
 
             default:
