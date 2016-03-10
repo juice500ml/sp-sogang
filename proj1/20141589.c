@@ -19,8 +19,8 @@
 
 // FIXED VARIABLES
 static const int __MEMORY_SIZE = 1<<20;
-static const int __INPUT_SIZE = 64;
-static const int __CMD_SIZE = 16;
+static const int __INPUT_SIZE = 128;
+static const int __CMD_SIZE = 128;
 static const int __TABLE_SIZE = 20;
 static const char __CMD_FORMAT[__CMD_FORMAT_SIZE];
 static const char *__OPCODE_FILENAME = "opcode.txt";
