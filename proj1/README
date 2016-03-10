@@ -1,0 +1,10 @@
+  1. How to make
+Type "make".
+
+
+  2. Errors
+
+  OUT OF MEMORY BOUNDS
+Printed when "dump" is called out of memory. Note that when "dump" is typed, output has 10 lines, and could be printed error because 10 lines cannot be printed.
+
+  MEMORY INSUFFICIENT
