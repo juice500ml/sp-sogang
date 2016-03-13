@@ -197,6 +197,7 @@ main(void)
               puts("WRONG INSTRUCTION");
               break;
             }
+          // open directory and read through all elem.
           i = 1;
           dirp = opendir(".");
           dir = readdir(dirp);
@@ -208,6 +209,7 @@ main(void)
                   puts("FILE NOT FOUND");
                   goto memory_clear;
                 }
+              // FIX: ignore . and ..
               if(_SAME_STR(dir->d_name, ".")
                  || _SAME_STR(dir->d_name, ".."))
                 continue;
@@ -220,7 +222,7 @@ main(void)
                 putchar('*');
               putchar('\t');
              
-              // print newline after 5 elements
+              // print newline after 3 elements
               if((i++)%3==0)
                 putchar('\n');
             }
@@ -268,6 +270,7 @@ main(void)
                 }
               start = get_location (0, false);
               end = start + 0x10 * 10 - 1;
+              // if end is too large, point to end and go 0
               if ( end >= __MEMORY_SIZE )
                 end = __MEMORY_SIZE - 1;
               hexdump (mem, start, end);
@@ -291,6 +294,7 @@ main(void)
                   break;
                 }
               end = start + 0x10 * 10 - 1;
+              // if end is too large, point to end and go 0
               if ( end >= __MEMORY_SIZE )
                 end = __MEMORY_SIZE - 1;
               hexdump (mem, start, end);
@@ -314,6 +318,7 @@ main(void)
                   break;
                 }
               hexdump (mem, start, end);
+              // if end is too large, point to end and go 0
               if ( end == __MEMORY_SIZE - 1)
                 get_location (0, true);
               else
@@ -377,6 +382,7 @@ main(void)
               puts("WRONG INSTRUCTION");
               break;
             }
+          // equivalent to fill 0, __MEMORY_SIZE-1
           hexfill (mem, __MEMORY_SIZE, 0, __MEMORY_SIZE - 1, 0);
               
           is_valid_cmd = true;
@@ -391,6 +397,7 @@ main(void)
                   puts("WRONG INSTRUCTION");
                   break;
                 }
+              // look for opcode in hash table
               i = str_hash(cmd) % __TABLE_SIZE;
               if (!q_empty(&oplist[i]))
                 {
@@ -428,6 +435,7 @@ main(void)
               puts("WRONG INSTRUCTION");
               break;
             }
+          // traverse through every table
           for(i=0; i<__TABLE_SIZE; ++i)
             {
               printf("%d : ", i);

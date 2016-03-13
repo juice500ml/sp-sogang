@@ -16,6 +16,7 @@ is_printable (uint8_t c)
   return is_inside (c, 0x20, 0x7E);
 }
 
+// prettyprint hex mem
 void
 hexdump (void *mem, uint32_t start, uint32_t finish)
 {
@@ -76,6 +77,7 @@ hexdump (void *mem, uint32_t start, uint32_t finish)
     }
 }
 
+// getter/setter for current location
 uint32_t
 get_location (uint32_t c, bool update)
 {
@@ -85,6 +87,7 @@ get_location (uint32_t c, bool update)
   return curr;
 }
 
+// fill mem (similar with memset)
 void
 hexfill (uint8_t *mem, uint32_t size,
          uint32_t start, uint32_t end, uint8_t value)
