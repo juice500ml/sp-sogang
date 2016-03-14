@@ -98,7 +98,7 @@ main(void)
   if (mem == NULL || input == NULL
       || cmd == NULL || oplist == NULL)
     {
-      puts("MEMORY INSUFFICIENT.");
+      puts("MEMORY INSUFFICIENT");
       goto memory_clear;
     }
 
@@ -111,7 +111,7 @@ main(void)
   FILE * fp = fopen(__OPCODE_FILENAME, "r");
   if (fp == NULL)
     {
-      printf("%s NOT FOUND.\n", __OPCODE_FILENAME);
+      printf("%s NOT FOUND\n", __OPCODE_FILENAME);
       goto memory_clear;
     }
 
@@ -120,7 +120,7 @@ main(void)
                "%%hhx %%%ds %%s", __CMD_SIZE - 1);
   if (i < 0 || i > __CMD_FORMAT_SIZE)
     {
-      puts("COMMAND SIZE IS TOO BIG.");
+      puts("COMMAND SIZE IS TOO BIG");
       goto memory_clear;
     }
 
@@ -132,7 +132,7 @@ main(void)
       if (sscanf(input, (const char *) __CMD_FORMAT,
              &code, cmd, &form) != 3)
         {
-          printf("%s is broken.\n", __OPCODE_FILENAME);
+          printf("%s IS BROKEN\n", __OPCODE_FILENAME);
           goto memory_clear;
         }
       
@@ -140,13 +140,13 @@ main(void)
       struct op_elem *oe = malloc(sizeof(struct op_elem));
       if (oe == NULL)
         {
-          puts("MEMORY INSUFFICIENT.");
+          puts("MEMORY INSUFFICIENT");
           goto memory_clear;
         }
       oe->opcode = malloc(sizeof(char)*(strlen(cmd)+1));
       if(oe->opcode == NULL)
         {
-          puts("MEMORY INSUFFICIENT.");
+          puts("MEMORY INSUFFICIENT");
           goto memory_clear;
         }
       strcpy(oe->opcode, cmd);
