@@ -19,8 +19,8 @@
 
 // FIXED VARIABLES
 static const int __MEMORY_SIZE = 1<<20;
-static const int __INPUT_SIZE = 64;
-static const int __CMD_SIZE = 16;
+static const int __INPUT_SIZE = 128;
+static const int __CMD_SIZE = 128;
 static const int __TABLE_SIZE = 20;
 static const char __CMD_FORMAT[__CMD_FORMAT_SIZE];
 static const char *__OPCODE_FILENAME = "opcode.txt";
@@ -36,7 +36,7 @@ address, value\nf[ill] start, end, value\n\
 reset\nopcode mnemonic\nopcodelist";
 
 
-// Deletes every char input after size. 
+// Deletes every char input after size.
 static bool
 get_chars (char *input, int size)
 {
@@ -47,6 +47,7 @@ get_chars (char *input, int size)
     if(i < size-1) input[i++] = c;
   input[i] = '\0';
 
+  // delete trailing whitespace
   if(i>0)
     while(input[i-1] == ' ' || input[i-1] == '\t')
       input[--i] = '\0';
@@ -54,6 +55,7 @@ get_chars (char *input, int size)
   return c != EOF;
 }
 
+// Get command index (same with enum cmd_flags) 
 static int
 get_cmd_index (char *input)
 {
@@ -68,14 +70,15 @@ get_cmd_index (char *input)
   return -1;
 }
 
+// Hash function for char string
 static uint64_t
 str_hash (char *str)
 {
-  // Reference: djb2 by Dan Bernstein (York Univ.)
-  uint64_t c, hash = 5381;
+  // hash start value is prime number
+  uint64_t c, hash = 179426549;
 
   while ((c = *str++)!='\0')
-    hash = ((hash << 5) + hash) + c;
+    hash = ((hash << 2) + hash) + c;
 
   return hash;
 }
@@ -95,7 +98,7 @@ main(void)
   if (mem == NULL || input == NULL
       || cmd == NULL || oplist == NULL)
     {
-      puts("MEMORY INSUFFICIENT.");
+      puts("MEMORY INSUFFICIENT");
       goto memory_clear;
     }
 
@@ -104,10 +107,11 @@ main(void)
   for (i=0; i<__TABLE_SIZE; ++i)
     q_init (&oplist[i]);
 
+  // Open file for opcode reference
   FILE * fp = fopen(__OPCODE_FILENAME, "r");
   if (fp == NULL)
     {
-      printf("%s NOT FOUND.\n", __OPCODE_FILENAME);
+      printf("%s NOT FOUND\n", __OPCODE_FILENAME);
       goto memory_clear;
     }
 
@@ -116,7 +120,7 @@ main(void)
                "%%hhx %%%ds %%s", __CMD_SIZE - 1);
   if (i < 0 || i > __CMD_FORMAT_SIZE)
     {
-      puts("COMMAND SIZE IS TOO BIG.");
+      puts("COMMAND SIZE IS TOO BIG");
       goto memory_clear;
     }
 
@@ -128,7 +132,7 @@ main(void)
       if (sscanf(input, (const char *) __CMD_FORMAT,
              &code, cmd, &form) != 3)
         {
-          printf("%s is broken.\n", __OPCODE_FILENAME);
+          printf("%s IS BROKEN\n", __OPCODE_FILENAME);
           goto memory_clear;
         }
       
@@ -136,13 +140,13 @@ main(void)
       struct op_elem *oe = malloc(sizeof(struct op_elem));
       if (oe == NULL)
         {
-          puts("MEMORY INSUFFICIENT.");
+          puts("MEMORY INSUFFICIENT");
           goto memory_clear;
         }
       oe->opcode = malloc(sizeof(char)*(strlen(cmd)+1));
       if(oe->opcode == NULL)
         {
-          puts("MEMORY INSUFFICIENT.");
+          puts("MEMORY INSUFFICIENT");
           goto memory_clear;
         }
       strcpy(oe->opcode, cmd);
@@ -162,27 +166,12 @@ main(void)
       DIR *dirp = NULL;
       struct dirent *dir = NULL;
       char check[2];
+      bool is_valid_cmd = false;
 
       printf("%s", __SHELL_FORM);
       if (!get_chars(input, __INPUT_SIZE))
         goto memory_clear;
 
-      // Saving commands
-      struct cmd_elem *e = malloc(sizeof(struct cmd_elem));
-      if (e == NULL)
-        {
-          puts("MEMORY INSUFFICIENT.");
-          goto memory_clear;
-        }
-      e->cmd = malloc(sizeof(char)*(strlen(input)+1));
-      if (e->cmd == NULL)
-        {
-          puts("MEMORY INSUFFICIENT.");
-          goto memory_clear;
-        }
-      strcpy(e->cmd, input);
-      q_insert (&cmd_queue, &(e->elem));
- 
       // Processing input string
       snprintf((char *) __CMD_FORMAT, __CMD_FORMAT_SIZE,
                    "%%%ds", __CMD_SIZE - 1);
@@ -199,6 +188,7 @@ main(void)
               break;
             }
           puts(__HELP_FORM);
+          is_valid_cmd = true;
           break;
         
         case CMD_DIR:
@@ -207,6 +197,7 @@ main(void)
               puts("WRONG INSTRUCTION");
               break;
             }
+          // open directory and read through all elem.
           i = 1;
           dirp = opendir(".");
           dir = readdir(dirp);
@@ -218,23 +209,27 @@ main(void)
                   puts("FILE NOT FOUND");
                   goto memory_clear;
                 }
+              // FIX: ignore . and ..
               if(_SAME_STR(dir->d_name, ".")
                  || _SAME_STR(dir->d_name, ".."))
                 continue;
-              printf("%s", dir->d_name);
-              if(S_ISDIR(st.st_mode))
+              printf("%20s", dir->d_name);
+              if(S_ISDIR(st.st_mode)) // is Directory?
                 putchar('/');
-              else if( (st.st_mode & S_IXUSR)
+              else if( (st.st_mode & S_IXUSR) // is exe?
                  || (st.st_mode & S_IXGRP)
                  || (st.st_mode & S_IXOTH) )
                 putchar('*');
-              printf("   ");
-              
-              if((i++)%5==0)
+              putchar('\t');
+             
+              // print newline after 3 elements
+              if((i++)%3==0)
                 putchar('\n');
             }
-          if((i-1)%5!=0)
+          if((i-1)%3!=0)
             putchar('\n');
+          
+          is_valid_cmd = true;
           break;
         
         case CMD_QUIT:
@@ -243,6 +238,8 @@ main(void)
               puts("WRONG INSTRUCTION");
               break;
             }
+          
+          is_valid_cmd = true;
           goto memory_clear;
         
         case CMD_HISTORY:
@@ -253,9 +250,13 @@ main(void)
             }
           qe = q_begin (&cmd_queue);
           i = 1;
+          // print every formatted history
           for (; qe!=q_end(&cmd_queue); qe=q_next(qe))
             printf("%-4d %s\n", i++,
                    q_entry(qe, struct cmd_elem, elem)->cmd);
+          printf("%-4d %s\n", i, input);
+          
+          is_valid_cmd = true;
           break;
         
         case CMD_DUMP:
@@ -267,7 +268,18 @@ main(void)
                   puts("WRONG INSTRUCTION");
                   break;
                 }
-              autodump (mem, __MEMORY_SIZE, 0x10 * 10);
+              start = get_location (0, false);
+              end = start + 0x10 * 10 - 1;
+              // if end is too large, point to end and go 0
+              if ( end >= __MEMORY_SIZE )
+                end = __MEMORY_SIZE - 1;
+              hexdump (mem, start, end);
+              if ( end == __MEMORY_SIZE - 1)
+                get_location (0, true);
+              else
+                get_location (end + 1, true);
+              
+              is_valid_cmd = true;
               break;
             
             case 2:
@@ -276,13 +288,22 @@ main(void)
                   puts("WRONG INSTRUCTION");
                   break;
                 }
-              if (!(start < __MEMORY_SIZE))
+              if (start >= __MEMORY_SIZE)
                 {
                   puts("OUT OF MEMORY BOUNDS.");
                   break;
                 }
-              get_location (start, true);
-              autodump (mem, __MEMORY_SIZE, 0x10 * 10);
+              end = start + 0x10 * 10 - 1;
+              // if end is too large, point to end and go 0
+              if ( end >= __MEMORY_SIZE )
+                end = __MEMORY_SIZE - 1;
+              hexdump (mem, start, end);
+              if ( end == __MEMORY_SIZE - 1)
+                get_location (0, true);
+              else
+                get_location (end + 1, true);
+              
+              is_valid_cmd = true;
               break;
             
             case 3:
@@ -296,8 +317,14 @@ main(void)
                   puts("OUT OF MEMORY BOUNDS.");
                   break;
                 }
-              get_location (start, true);
-              autodump (mem, __MEMORY_SIZE, end - start + 1);
+              hexdump (mem, start, end);
+              // if end is too large, point to end and go 0
+              if ( end == __MEMORY_SIZE - 1)
+                get_location (0, true);
+              else
+                get_location (end + 1, true);
+              
+              is_valid_cmd = true;
               break;
 
             default:
@@ -317,6 +344,8 @@ main(void)
                   break;
                 }
               hexfill (mem, __MEMORY_SIZE, start, start, value);
+              
+              is_valid_cmd = true;
               break;
             
             default:
@@ -337,6 +366,8 @@ main(void)
                   break;
                 }
               hexfill (mem, __MEMORY_SIZE, start, end, value);
+              
+              is_valid_cmd = true;
               break;
             
             default:
@@ -351,7 +382,10 @@ main(void)
               puts("WRONG INSTRUCTION");
               break;
             }
+          // equivalent to fill 0, __MEMORY_SIZE-1
           hexfill (mem, __MEMORY_SIZE, 0, __MEMORY_SIZE - 1, 0);
+              
+          is_valid_cmd = true;
           break;
 
         case CMD_OPCODE:
@@ -363,9 +397,11 @@ main(void)
                   puts("WRONG INSTRUCTION");
                   break;
                 }
+              // look for opcode in hash table
               i = str_hash(cmd) % __TABLE_SIZE;
               if (!q_empty(&oplist[i]))
                 {
+                  bool found = false;
                   qe = q_begin (&oplist[i]);
                   for(; qe != q_end(&oplist[i]); qe = q_next(qe))
                     {
@@ -374,10 +410,17 @@ main(void)
                       if (_SAME_STR(cmd, oe->opcode))
                         {
                           printf("opcode is %2X\n", oe->code);
+                          found = true;
                           break;
                         }
                     }
+                  if (found)
+                    {
+                      is_valid_cmd = true;
+                      break;
+                    }
                 }
+              printf("%s: NO SUCH OPCODE\n", cmd);
               break;
 
             default:
@@ -392,6 +435,7 @@ main(void)
               puts("WRONG INSTRUCTION");
               break;
             }
+          // traverse through every table
           for(i=0; i<__TABLE_SIZE; ++i)
             {
               printf("%d : ", i);
@@ -411,6 +455,8 @@ main(void)
                 }
               puts("");
             }
+          
+          is_valid_cmd = true;
           break;
 
         default:
@@ -420,6 +466,25 @@ main(void)
               break;
             }
         }
+
+      if (is_valid_cmd)
+        {
+          // Saving commands
+          struct cmd_elem *e = malloc(sizeof(struct cmd_elem));
+          if (e == NULL)
+            {
+              puts("MEMORY INSUFFICIENT.");
+              goto memory_clear;
+            }
+          e->cmd = malloc(sizeof(char)*(strlen(input)+1));
+          if (e->cmd == NULL)
+            {
+              puts("MEMORY INSUFFICIENT.");
+              goto memory_clear;
+            }
+          strcpy(e->cmd, input);
+          q_insert (&cmd_queue, &(e->elem));
+        } 
     }
 
 

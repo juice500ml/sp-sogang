@@ -16,7 +16,8 @@ is_printable (uint8_t c)
   return is_inside (c, 0x20, 0x7E);
 }
 
-static void
+// prettyprint hex mem
+void
 hexdump (void *mem, uint32_t start, uint32_t finish)
 {
   uint8_t *umem = (uint8_t *) mem;
@@ -76,6 +77,7 @@ hexdump (void *mem, uint32_t start, uint32_t finish)
     }
 }
 
+// getter/setter for current location
 uint32_t
 get_location (uint32_t c, bool update)
 {
@@ -85,22 +87,7 @@ get_location (uint32_t c, bool update)
   return curr;
 }
 
-void
-autodump (void *mem, uint32_t size, uint32_t len)
-{
-  uint32_t curr = get_location(0, false);
-
-  if (curr >= size || curr + len - 1 >= size)
-    {
-      puts("OUT OF MEMORY BOUNDS.");
-    }
-  else
-    {
-      hexdump (mem, curr, curr + len - 1);
-      get_location(curr + len, true);
-    }
-}
-
+// fill mem (similar with memset)
 void
 hexfill (uint8_t *mem, uint32_t size,
          uint32_t start, uint32_t end, uint8_t value)

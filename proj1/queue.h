@@ -11,14 +11,16 @@ struct q_elem
   struct q_elem *prev;
 };
 
+// no memory alloc
 struct queue 
 {
   struct q_elem head;
   struct q_elem tail;
 };
 
-#define q_entry(Q_ELEM, STRUCT, MEMBER)           \
-  ((STRUCT *) ((uint8_t *) &(Q_ELEM)->next     \
+// locate original struct pointer with offset of .next
+#define q_entry(Q_ELEM, STRUCT, MEMBER)\
+  ((STRUCT *) ((uint8_t *) &(Q_ELEM)->next\
                - offsetof (STRUCT, MEMBER.next)))
 
 void q_init (struct queue *);
