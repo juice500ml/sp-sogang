@@ -1,6 +1,7 @@
 #include "20141589.h"
 #include "queue.h"
 #include "hexctrl.h"
+#include "filectrl.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,27 +14,30 @@
 // MACRO FUNCTIONS
 #define _SAME_STR(s1,s2) (strcmp(s1,s2)==0)
 
-#define __CMD_FORMAT_SIZE 16
-#define __CMD_TABLE_SIZE 10
+#define __CMD_FORMAT_SIZE 32
+#define __CMD_TABLE_SIZE 13
 #define __SHORT_CMD_TABLE_SIZE 7
 
 // FIXED VARIABLES
 static const int __MEMORY_SIZE = 1<<20;
 static const int __INPUT_SIZE = 128;
 static const int __CMD_SIZE = 128;
+static const int __FILENAME_SIZE = 128;
 static const int __TABLE_SIZE = 20;
 static const char __CMD_FORMAT[__CMD_FORMAT_SIZE];
 static const char *__OPCODE_FILENAME = "opcode.txt";
 static const char *__CMD_TABLE[__CMD_TABLE_SIZE] =\
 {"help", "dir", "quit", "history", "dump",\
-  "edit", "fill", "reset", "opcode", "opcodelist" };
+  "edit", "fill", "reset", "opcode", "opcodelist",\
+  "assemble", "type", "symbol"};
 static const char *__SHORT_CMD_TABLE[__SHORT_CMD_TABLE_SIZE] =\
 {"h","d","q","hi","du","e","f"};
 static const char *__SHELL_FORM = "sicsim> ";
 static const char *__HELP_FORM = "h[elp]\nd[ir]\nq[uit]\n\
 hi[story]\ndu[mp] [start, end]\ne[dit] \
 address, value\nf[ill] start, end, value\n\
-reset\nopcode mnemonic\nopcodelist";
+reset\nopcode mnemonic\nopcodelist\n\
+assemble filename\ntype filename\nsymbol";
 
 
 // Deletes every char input after size.
@@ -95,7 +99,8 @@ main(void)
                                  * __TABLE_SIZE);
   char *input = malloc (sizeof(char)*__INPUT_SIZE);
   char *cmd = malloc (sizeof(char)*__CMD_SIZE);
-  if (mem == NULL || input == NULL
+  char *filename = malloc (sizeof(char)*__FILENAME_SIZE);
+  if (mem == NULL || input == NULL || filename == NULL
       || cmd == NULL || oplist == NULL)
     {
       puts("MEMORY INSUFFICIENT");
@@ -457,6 +462,73 @@ main(void)
             }
           
           is_valid_cmd = true;
+          break;
+
+        case CMD_ASSEMBLE:
+          // Processing input string
+          snprintf((char *) __CMD_FORMAT,
+                   __CMD_FORMAT_SIZE,
+                   "%%%ds %%%ds %%1s",
+                   __CMD_SIZE - 1,
+                   __FILENAME_SIZE - 1);
+          if (sscanf(input,
+                     (const char *) __CMD_FORMAT,
+                     cmd, filename, check)!=2)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
+          if (!is_file((const char*)filename))
+            {
+              puts("FILE NOT FOUND");
+              break;
+            }
+
+          // TODO: Assemble!
+          printf("[%s] [%s]\n", cmd, filename);
+          printf("CMD_ASSEMBLE\n");
+          is_valid_cmd = true;
+
+          break;
+
+        case CMD_TYPE:
+          // Processing input string
+          snprintf((char *) __CMD_FORMAT,
+                   __CMD_FORMAT_SIZE,
+                   "%%%ds %%%ds %%1s",
+                   __CMD_SIZE - 1,
+                   __FILENAME_SIZE - 1);
+          if (sscanf(input,
+                     (const char *) __CMD_FORMAT,
+                     cmd, filename, check)!=2)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
+          if (!is_file((const char*)filename))
+            {
+              puts("FILE NOT FOUND");
+              break;
+            }
+          else
+            {
+              print_file((const char*)filename);
+              is_valid_cmd = true;
+            }
+
+          break;
+
+        case CMD_SYMBOL:
+          if(sscanf(input, "%*s %1s", check) == 1)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
+
+          // TODO: Symbol Table!
+          printf("CMD_SYMBOL\n");
+          is_valid_cmd = true;
+
           break;
 
         default:

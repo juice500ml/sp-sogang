@@ -17,6 +17,9 @@ enum cmd_flags
   CMD_RESET = 7,
   CMD_OPCODE = 8,
   CMD_OPCODELIST = 9,
+  CMD_ASSEMBLE = 10,
+  CMD_TYPE = 11,
+  CMD_SYMBOL = 12,
 };
 
 struct cmd_elem

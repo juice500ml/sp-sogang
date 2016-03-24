@@ -26,7 +26,7 @@ Text file that opcode is stored is not saved properly.
 sicsim cannot understand the instruction.
 
   FILE NOT FOUND
-File status reading has failed.
+File status reading has failed, or file is not existent.
 
   {{cmd}}: NO SUCH OPCODE
 No such opcode is not found in input opcode text file.
