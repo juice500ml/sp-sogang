@@ -23,6 +23,7 @@ struct queue
   ((STRUCT *) ((uint8_t *) &(Q_ELEM)->next\
                - offsetof (STRUCT, MEMBER.next)))
 
+uint64_t str_hash (char *str);
 void q_init (struct queue *);
 struct q_elem *q_begin (struct queue *);
 struct q_elem *q_end (struct queue *);

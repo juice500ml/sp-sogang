@@ -19,13 +19,12 @@
 #define __SHORT_CMD_TABLE_SIZE 7
 
 // FIXED VARIABLES
+static const char *__OPCODE_FILENAME = "opcode.txt";
 static const int __MEMORY_SIZE = 1<<20;
 static const int __INPUT_SIZE = 128;
 static const int __CMD_SIZE = 128;
 static const int __FILENAME_SIZE = 128;
-static const int __TABLE_SIZE = 20;
 static const char __CMD_FORMAT[__CMD_FORMAT_SIZE];
-static const char *__OPCODE_FILENAME = "opcode.txt";
 static const char *__CMD_TABLE[__CMD_TABLE_SIZE] =\
 {"help", "dir", "quit", "history", "dump",\
   "edit", "fill", "reset", "opcode", "opcodelist",\
@@ -74,19 +73,6 @@ get_cmd_index (char *input)
   return -1;
 }
 
-// Hash function for char string
-static uint64_t
-str_hash (char *str)
-{
-  // hash start value is prime number
-  uint64_t c, hash = 179426549;
-
-  while ((c = *str++)!='\0')
-    hash = ((hash << 2) + hash) + c;
-
-  return hash;
-}
-
 int
 main(void)
 {
@@ -95,76 +81,26 @@ main(void)
   q_init (&cmd_queue);
 
   uint8_t *mem = calloc (__MEMORY_SIZE, sizeof(uint8_t));
-  struct queue *oplist = malloc (sizeof(struct queue)
-                                 * __TABLE_SIZE);
   char *input = malloc (sizeof(char)*__INPUT_SIZE);
   char *cmd = malloc (sizeof(char)*__CMD_SIZE);
   char *filename = malloc (sizeof(char)*__FILENAME_SIZE);
   if (mem == NULL || input == NULL || filename == NULL
-      || cmd == NULL || oplist == NULL)
+      || cmd == NULL)
     {
       puts("MEMORY INSUFFICIENT");
       goto memory_clear;
     }
 
-  // OPCODE READ
-  int i;
-  for (i=0; i<__TABLE_SIZE; ++i)
-    q_init (&oplist[i]);
-
-  // Open file for opcode reference
-  FILE * fp = fopen(__OPCODE_FILENAME, "r");
-  if (fp == NULL)
+  if (!init_oplist (__OPCODE_FILENAME))
     {
-      printf("%s NOT FOUND\n", __OPCODE_FILENAME);
+      puts("OPCODE LIST INITIALIZATION FAILED.");
       goto memory_clear;
-    }
-
-  // Formatting string
-  i = snprintf((char *) __CMD_FORMAT, __CMD_FORMAT_SIZE,
-               "%%hhx %%%ds %%s", __CMD_SIZE - 1);
-  if (i < 0 || i > __CMD_FORMAT_SIZE)
-    {
-      puts("COMMAND SIZE IS TOO BIG");
-      goto memory_clear;
-    }
-
-  // opcode hash table generation
-  while (fgets(input, __INPUT_SIZE, fp) != NULL)
-    {
-      uint8_t code;
-      char form[__OPCODE_FORMAT_SIZE];
-      if (sscanf(input, (const char *) __CMD_FORMAT,
-             &code, cmd, &form) != 3)
-        {
-          printf("%s IS BROKEN\n", __OPCODE_FILENAME);
-          goto memory_clear;
-        }
-      
-      // Saving opcode
-      struct op_elem *oe = malloc(sizeof(struct op_elem));
-      if (oe == NULL)
-        {
-          puts("MEMORY INSUFFICIENT");
-          goto memory_clear;
-        }
-      oe->opcode = malloc(sizeof(char)*(strlen(cmd)+1));
-      if(oe->opcode == NULL)
-        {
-          puts("MEMORY INSUFFICIENT");
-          goto memory_clear;
-        }
-      strcpy(oe->opcode, cmd);
-      strcpy(oe->format, form);
-      oe->code = code;
-
-      code = str_hash (cmd) % __TABLE_SIZE;
-      q_insert (&oplist[code], &(oe->elem));
     }
 
   // COMMAND PROCESSING
   while (true)
     {
+      int i;
       struct q_elem *qe;
       uint8_t value;
       uint32_t start, end;
@@ -402,30 +338,7 @@ main(void)
                   puts("WRONG INSTRUCTION");
                   break;
                 }
-              // look for opcode in hash table
-              i = str_hash(cmd) % __TABLE_SIZE;
-              if (!q_empty(&oplist[i]))
-                {
-                  bool found = false;
-                  qe = q_begin (&oplist[i]);
-                  for(; qe != q_end(&oplist[i]); qe = q_next(qe))
-                    {
-                      struct op_elem *oe
-                        = q_entry (qe, struct op_elem, elem);
-                      if (_SAME_STR(cmd, oe->opcode))
-                        {
-                          printf("opcode is %2X\n", oe->code);
-                          found = true;
-                          break;
-                        }
-                    }
-                  if (found)
-                    {
-                      is_valid_cmd = true;
-                      break;
-                    }
-                }
-              printf("%s: NO SUCH OPCODE\n", cmd);
+              is_valid_cmd = find_oplist (cmd);
               break;
 
             default:
@@ -440,27 +353,7 @@ main(void)
               puts("WRONG INSTRUCTION");
               break;
             }
-          // traverse through every table
-          for(i=0; i<__TABLE_SIZE; ++i)
-            {
-              printf("%d : ", i);
-              if (!q_empty(&oplist[i]))
-                {
-                  qe = q_begin (&oplist[i]);
-                  struct op_elem *oe
-                    = q_entry (qe, struct op_elem, elem);
-                  printf ("[%s:%02X] ", oe->opcode, oe->code);
-                  for(qe = q_next(qe); qe != q_end(&oplist[i]);
-                      qe = q_next(qe))
-                    {
-                      oe = q_entry (qe, struct op_elem, elem);
-                      printf ("-> [%s:%02X] ",
-                              oe->opcode, oe->code);
-                    }
-                }
-              puts("");
-            }
-          
+          print_oplist ();
           is_valid_cmd = true;
           break;
 
@@ -575,19 +468,7 @@ memory_clear:
         free(ce->cmd);
       free(ce);
     }
-  for(i=0; i<__TABLE_SIZE; ++i)
-    {
-      while(!q_empty(&oplist[i]))
-        {
-          struct q_elem *e = q_delete(&oplist[i]);
-          struct op_elem *oe = q_entry(e, struct op_elem, elem);
-          if (oe->opcode != NULL)
-            free(oe->opcode);
-          free(oe);
-        }
-    }
-  if (oplist != NULL)
-    free (oplist);
+  free_oplist ();
 
   return 0;
 }

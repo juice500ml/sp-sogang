@@ -2,6 +2,19 @@
 
 #include <stddef.h>
 
+// Hash function for char string
+uint64_t
+str_hash (char *str)
+{
+  // hash start value is prime number
+  uint64_t c, hash = 179426549;
+
+  while ((c = *str++)!='\0')
+    hash = ((hash << 2) + hash) + c;
+
+  return hash;
+}
+
 void
 q_init (struct queue *q)
 {
