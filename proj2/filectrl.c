@@ -86,31 +86,23 @@ print_oplist (void)
       }
 }
 
-bool
+int
 find_oplist (char *cmd)
 {
   // look for opcode in hash table
   int i = str_hash(cmd) % __TABLE_SIZE;
   if (!q_empty(&oplist[i]))
     {
-      bool found = false;
       struct q_elem *qe = q_begin (&oplist[i]);
       for(; qe != q_end(&oplist[i]); qe = q_next(qe))
         {
           struct op_elem *oe
             = q_entry (qe, struct op_elem, elem);
           if (strcmp(cmd, oe->opcode) == 0)
-            {
-              printf("opcode is %2X\n", oe->code);
-              found = true;
-              break;
-            }
+            return oe->code;
         }
-      if (found)
-        return true;
     }
-  printf("%s: NO SUCH OPCODE\n", cmd);
-  return false;
+  return -1;
 }
 
 bool

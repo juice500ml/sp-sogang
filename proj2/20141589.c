@@ -338,7 +338,14 @@ main(void)
                   puts("WRONG INSTRUCTION");
                   break;
                 }
-              is_valid_cmd = find_oplist (cmd);
+              i = find_oplist (cmd);
+              if (i != -1)
+                printf("opcode is %2X\n", i);
+              else
+                {
+                  printf("%s: NO SUCH OPCODE\n", cmd);
+                  is_valid_cmd = false;
+                }
               break;
 
             default:

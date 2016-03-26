@@ -13,14 +13,8 @@ Printed when "dump" is called out of memory. Note that when "dump" is typed, out
   MEMORY INSUFFICIENT
 Memory allocation for sicsim has failed.
 
-  {{__OPCODE_FILENAME}} NOT FOUND
-Text file that opcode is stored is not found.
-
   COMMAND SIZE IS TOO BIG
 Command input is too long to be processed. This can be solved by increasing __CMD_FORMAT_SIZE
-
-  {{__OPCODE_FILENAME}} IS BROKEN
-Text file that opcode is stored is not saved properly.
 
   WRONG INSTRUCTION
 sicsim cannot understand the instruction.
@@ -30,3 +24,12 @@ File status reading has failed, or file is not existent.
 
   {{cmd}}: NO SUCH OPCODE
 No such opcode is not found in input opcode text file.
+
+  [OPCODE] {{__OPCODE_FILENAME}} NOT FOUND
+Text file that opcode is stored is not found.
+
+  [OPCODE] {{__OPCODE_FILENAME}} IS BROKEN
+Text file that opcode is stored is not saved properly.
+
+  [OPCODE] MEMORY INSUFFICIENT
+Memory allocation for opcode list has failed.
