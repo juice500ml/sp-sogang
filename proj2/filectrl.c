@@ -108,6 +108,32 @@ find_oplist (char *cmd)
   return -1;
 }
 
+static int
+find_size_oplist (char *cmd)
+{
+  // look for opcode in hash table
+  int i = str_hash(cmd) % __TABLE_SIZE;
+  if (!q_empty(&oplist[i]))
+    {
+      struct q_elem *qe = q_begin (&oplist[i]);
+      for(; qe != q_end(&oplist[i]); qe = q_next(qe))
+        {
+          struct op_elem *oe
+            = q_entry (qe, struct op_elem, elem);
+          if (_SAME_STR(cmd, oe->opcode))
+            {
+              if (_SAME_STR(oe->format, "1"))
+                return 1;
+              else if (_SAME_STR(oe->format, "2"))
+                return 2;
+              else if (_SAME_STR(oe->format, "3/4"))
+                return 3;
+            }
+        }
+    }
+  return 0;
+}
+
 bool
 init_oplist (const char *filename)
 {
@@ -238,7 +264,7 @@ insert_mid_str (int linenum, uint32_t locctr,
   if (loc_print)
     sprintf (me->line, "%4d %04X %s", linenum, locctr, s);
   else  
-    sprintf (me->line, "     %04X %s", locctr, s);
+    sprintf (me->line, "%4d      %s", linenum, s);
   q_insert (q, &(me->elem));
   printf("[%s] inserted!\n", me->line);
   return true;
@@ -378,6 +404,8 @@ assemble_file (const char *filename)
   // lst generation
   do
     {
+      bool is_type_four = false;
+
       // read line until valid
       if (!get_str(input, __READ_SIZE, fp))
         {
@@ -452,7 +480,10 @@ assemble_file (const char *filename)
           goto end_assemble;
         }
       if (cmd[0] == '+')
-        strcpy (cmd, &cmd[1]);
+        {
+          strcpy (cmd, &cmd[1]);
+          is_type_four = true;
+        }
 
       // it has to be a symbol
       if (find_oplist (cmd) == -1
@@ -461,6 +492,7 @@ assemble_file (const char *filename)
           && !_SAME_STR (cmd, "RESB")
           && !_SAME_STR (cmd, "BYTE"))
         {
+          is_type_four = false;
           if (find_symbol (cmd, tmp_symtbl) != -1)
             {
               printf("[ASSEMBLER] DUPLICATE SYMBOL [%s]", cmd);
@@ -482,7 +514,10 @@ assemble_file (const char *filename)
               continue;
             }
           if (cmd[0] == '+')
-            strcpy (cmd, &cmd[1]);
+            {
+              is_type_four = true;
+              strcpy (cmd, &cmd[1]);
+            }
 
           if (find_oplist (cmd) == -1
               && !_SAME_STR (cmd, "WORD")
@@ -501,7 +536,13 @@ assemble_file (const char *filename)
       int delta = 0x3;
 
       // now cmd has only code
-      if (_SAME_STR (cmd, "RESW"))
+      if (is_type_four)
+        delta = 0x4;
+      else if (find_size_oplist (cmd) == 1)
+        delta = 0x1;
+      else if (find_size_oplist (cmd) == 2)
+        delta = 0x2;
+      else if (_SAME_STR (cmd, "RESW"))
         {
           if (sscanf (input, "%*s %*s %d", &i) != 1)
             {
@@ -606,10 +647,6 @@ assemble_file (const char *filename)
               continue;
             }
         }
-      else
-        {
-          delta = 0x3;
-        }
 
       linenum += 5;
       if (!insert_mid_str (linenum,
@@ -637,6 +674,7 @@ end_assemble:
       struct q_elem *e = q_delete (&mid_queue);
       struct mid_elem *me
         = q_entry (e, struct mid_elem, elem);
+      puts(me->line);
       if (me->line != NULL)
         free (me->line);
       free (me);
