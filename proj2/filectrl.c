@@ -282,7 +282,7 @@ insert_fin_str (char *s, struct queue *q, bool append)
     {
       if (q_empty (q))
         {
-          puts("[ASSEMBLER] MEMORY INSUFFICIENT");
+          puts("[ASSEMBLER] CANNOT APPEND TO NOTHING");
           return false;
         }
       me = q_entry(q_end (q)->prev, struct str_elem, elem);
@@ -306,7 +306,7 @@ insert_fin_str (char *s, struct queue *q, bool append)
           return false;
         }
 
-      me->line = malloc(sizeof(char)*(strlen(s)+1));
+      me->line = malloc(sizeof(char) * (strlen (s) + 1));
       if (me->line == NULL)
         {
           puts("[ASSEMBLER] MEMORY INSUFFICIENT");
@@ -314,9 +314,9 @@ insert_fin_str (char *s, struct queue *q, bool append)
         }
       
       strcpy (me->line, s);
+      q_insert (q, &(me->elem));
     }
 
-  q_insert (q, &(me->elem));
   printf("[%s] inserted!\n", me->line);
   return true;
 }
@@ -745,7 +745,8 @@ assemble_file (const char *filename)
       sprintf (input, "      %06X%0X",
                startaddr, locctr - startaddr);
     }
-  insert_fin_str (input, &fin_queue, true);
+  if (!insert_fin_str (input, &fin_queue, true))
+    goto end_assemble;
 
   // Text Record
   for (; e != q_end (&mid_queue); e = q_next (e))
@@ -837,6 +838,18 @@ end_assemble:
   while (!q_empty(&mid_queue))
     {
       struct q_elem *e = q_delete (&mid_queue);
+      struct str_elem *me
+        = q_entry (e, struct str_elem, elem);
+      puts(me->line);
+      if (me->line != NULL)
+        free (me->line);
+      free (me);
+    }
+  // else save mid file and free
+  // if not assembled free
+  while (!q_empty(&fin_queue))
+    {
+      struct q_elem *e = q_delete (&fin_queue);
       struct str_elem *me
         = q_entry (e, struct str_elem, elem);
       puts(me->line);
