@@ -384,10 +384,7 @@ main(void)
               break;
             }
 
-          // TODO: Assemble!
-          printf("[%s] [%s]\n", cmd, filename);
-          printf("CMD_ASSEMBLE\n");
-          is_valid_cmd = true;
+          is_valid_cmd = assemble_file (filename);
 
           break;
 
@@ -467,7 +464,7 @@ memory_clear:
     free (input);
   if (cmd != NULL)
     free (cmd);
-  while(!q_empty(&cmd_queue))
+  while (!q_empty(&cmd_queue))
     {
       struct q_elem *e = q_delete(&cmd_queue);
       struct cmd_elem *ce = q_entry(e, struct cmd_elem, elem);

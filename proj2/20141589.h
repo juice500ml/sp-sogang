@@ -3,8 +3,6 @@
 
 #include "queue.h"
 
-#define __OPCODE_FORMAT_SIZE 8
-
 enum cmd_flags
 {
   CMD_HELP = 0,
@@ -25,14 +23,6 @@ enum cmd_flags
 struct cmd_elem
 {
   char *cmd;
-  struct q_elem elem;
-};
-
-struct op_elem
-{
-  uint8_t code;
-  char format[__OPCODE_FORMAT_SIZE];
-  char *opcode;
   struct q_elem elem;
 };
 
