@@ -10,8 +10,9 @@
 #define _SAME_STR(s1,s2) (strcmp(s1,s2)==0)
 
 static const int __TABLE_SIZE = 20;
-static struct queue *oplist;
 static const int __READ_SIZE = 128;
+static struct queue *oplist;
+static struct queue *symbol_table;
 
 bool
 is_file (const char *filename)
@@ -100,7 +101,7 @@ find_oplist (char *cmd)
         {
           struct op_elem *oe
             = q_entry (qe, struct op_elem, elem);
-          if (strcmp(cmd, oe->opcode) == 0)
+          if (_SAME_STR(cmd, oe->opcode))
             return oe->code;
         }
     }
@@ -178,6 +179,25 @@ memory_clear:
   return false;
 }
 
+// if not found, return -1, if found, locctr
+static int
+find_symbol (char *label, struct queue tbl[])
+{
+  uint64_t i = str_hash (label) % __TABLE_SIZE;
+  if (!q_empty(&tbl[i]))
+    {
+      struct q_elem *qe = q_begin (&tbl[i]);
+      for (; qe != q_end (&tbl[i]); qe = q_next (qe))
+        {
+          struct sym_elem *se
+            = q_entry (qe, struct sym_elem, elem);
+          if (_SAME_STR(label, se->label))
+            return se->locctr;
+        }
+    }
+  return -1;
+}
+
 // get string from fp
 static bool
 get_str (char *input, int size, FILE *fp)
@@ -199,7 +219,8 @@ get_str (char *input, int size, FILE *fp)
 
 // input string in queue
 static bool
-insert_mid_str (int line, uint32_t ctr, char *s, struct queue *q)
+insert_mid_str (int linenum, uint32_t locctr,
+                char *s, struct queue *q, bool loc_print)
 {
   struct mid_elem *me = malloc(sizeof(struct mid_elem));
   if (me == NULL)
@@ -214,7 +235,10 @@ insert_mid_str (int line, uint32_t ctr, char *s, struct queue *q)
       puts("[ASSEMBLER] MEMORY INSUFFICIENT");
       return false;
     }
-  sprintf (me->line, "%4d %04X %s", line, ctr, s);
+  if (loc_print)
+    sprintf (me->line, "%4d %04X %s", linenum, locctr, s);
+  else  
+    sprintf (me->line, "     %04X %s", locctr, s);
   q_insert (q, &(me->elem));
   printf("[%s] inserted!\n", me->line);
   return true;
@@ -222,7 +246,7 @@ insert_mid_str (int line, uint32_t ctr, char *s, struct queue *q)
 
 // input symbol in queue
 static bool
-insert_sym_str (char *label, int ctr, struct queue tbl[])
+insert_symbol (char *label, int ctr, struct queue tbl[])
 {
   struct sym_elem *se = malloc(sizeof(struct sym_elem));
   if (se == NULL)
@@ -257,11 +281,11 @@ assemble_file (const char *filename)
   int linenum = 0;
   int i = 0;
   struct queue mid_queue;
-  struct queue sym_table[__TABLE_SIZE];
+  struct queue tmp_symtbl[__TABLE_SIZE];
 
   q_init (&mid_queue);
   for (i=0; i<__TABLE_SIZE; ++i)
-    q_init (&sym_table[i]);
+    q_init (&tmp_symtbl[i]);
 
   if (fp == NULL)
     {
@@ -276,7 +300,10 @@ assemble_file (const char *filename)
       puts("[ASSEMBLER] MEMORY INSUFFICIENT");
       goto end_assemble;
     }
-  
+
+  // PASS 1
+  // ONLY CHECK FRONT TWO STRINGS
+
   // check if empty
   if (!get_str(input, __READ_SIZE, fp))
     {
@@ -286,18 +313,24 @@ assemble_file (const char *filename)
   
   // START
   // ex) START 1000
-  if (sscanf(input, "%s", cmd)==1 && _SAME_STR(cmd, "START"))
+  if (sscanf (input, "%s", cmd) == 1
+      && _SAME_STR(cmd, "START"))
     {
       if (sscanf(input, "%*s %s %1s", cmd, chk) == 1
           && sscanf(cmd, "%x %1s", &startaddr, chk) == 1)
         {
           locctr = startaddr;
           linenum += 5;
+
+          // insertion
           if (!insert_mid_str (linenum,
                                locctr,
                                input,
-                               &mid_queue))
+                               &mid_queue,
+                               false))
             goto end_assemble;
+
+          // no need to locctr += 0x3. this is START.
         }
       else
         {
@@ -307,7 +340,7 @@ assemble_file (const char *filename)
         }
     }
   // ex) COPY START 1000
-  else if (sscanf(input, "%*s %s", cmd)==1
+  else if (sscanf (input, "%*s %s", cmd) == 1
            && _SAME_STR(cmd, "START"))
     {
       if (sscanf(input, "%*s %*s %s %1s", cmd, chk) == 1
@@ -315,15 +348,19 @@ assemble_file (const char *filename)
         {
           locctr = startaddr;
           linenum += 5;
+          sscanf(input, "%s", cmd);
+
+          // insertion with linenumber
           if (!insert_mid_str (linenum,
                                locctr,
                                input,
-                               &mid_queue))
+                               &mid_queue,
+                               true))
             goto end_assemble;
-          
-          sscanf(input, "%s", cmd);
-          if (!insert_sym_str (cmd, locctr, sym_table))
+          if (!insert_symbol (cmd, locctr, tmp_symtbl))
             goto end_assemble;
+
+          // no need to locctr += 0x3. this is START.
         }
       else
         {
@@ -350,7 +387,238 @@ assemble_file (const char *filename)
 
       // check if comment
       if (input[0] == '.')
-        continue;
+        {
+          linenum += 5;
+
+          // insertion
+          if (!insert_mid_str (linenum,
+                               locctr,
+                               input,
+                               &mid_queue,
+                               false))
+            goto end_assemble;
+
+          continue;
+        }
+
+      // check for directives: if END or BASE
+      if (sscanf (input, "%s", cmd) == 1
+          && (_SAME_STR(cmd, "END")||_SAME_STR(cmd, "BASE")))
+        {
+          linenum += 5;
+
+          // insertion
+          if (!insert_mid_str (linenum,
+                               locctr,
+                               input,
+                               &mid_queue,
+                               false))
+            goto end_assemble;
+
+          // no need to locctr += 0x3. this is directive.
+          if (_SAME_STR (cmd, "END"))
+            break;
+          else
+            continue;
+        }
+      else if (sscanf (input, "%*s %s", cmd) == 1
+               && (_SAME_STR(cmd, "END")||_SAME_STR(cmd, "BASE")))
+        {
+          linenum += 5;
+          sscanf(input, "%s", cmd);
+
+          // insertion with linenumber
+          if (!insert_mid_str (linenum,
+                               locctr,
+                               input,
+                               &mid_queue,
+                               true))
+            goto end_assemble;
+          if (!insert_symbol (cmd, locctr, tmp_symtbl))
+            goto end_assemble;
+
+          // no need to locctr += 0x3. this is directive.
+          if (_SAME_STR (cmd, "END"))
+            break;
+          else
+            continue;
+        }
+
+      // check for others
+      // read first one and determine if opcode
+      if (sscanf (input, "%s", cmd) != 1)
+        {
+          printf("[ASSEMBLER][DEBUG] get_str behavior error\n");
+          goto end_assemble;
+        }
+      if (cmd[0] == '+')
+        strcpy (cmd, &cmd[1]);
+
+      // it has to be a symbol
+      if (find_oplist (cmd) == -1
+          && !_SAME_STR (cmd, "WORD")
+          && !_SAME_STR (cmd, "RESW")
+          && !_SAME_STR (cmd, "RESB")
+          && !_SAME_STR (cmd, "BYTE"))
+        {
+          if (find_symbol (cmd, tmp_symtbl) != -1)
+            {
+              printf("[ASSEMBLER] DUPLICATE SYMBOL [%s]", cmd);
+              printf(" AT %d:[%s]\n", linenum, input);
+              printf("[ASSEMBLER] WARNING: SYMBOL IGNORED.\n");
+            }
+          else
+            {
+              if (!insert_symbol (cmd, locctr, tmp_symtbl))
+                goto end_assemble;
+            }
+          
+          // save new command at cmd
+          if (sscanf (input, "%*s %s", cmd) != 1)
+            {
+              printf("[ASSEMBLER] INVALID SYNTAX");
+              printf(" AT %d:[%s]\n", linenum, input);
+              printf("[ASSEMBLER] WARNING: LINE IGNORED.\n");
+              continue;
+            }
+          if (cmd[0] == '+')
+            strcpy (cmd, &cmd[1]);
+
+          if (find_oplist (cmd) == -1
+              && !_SAME_STR (cmd, "WORD")
+              && !_SAME_STR (cmd, "RESW")
+              && !_SAME_STR (cmd, "RESB")
+              && !_SAME_STR (cmd, "BYTE"))
+            {
+              printf("[ASSEMBLER] NO SUCH OPCODE [%s]", cmd);
+              printf(" AT %d:[%s]\n", linenum, input);
+              printf("[ASSEMBLER] WARNING: LINE IGNORED.\n");
+              continue;
+            }
+        }
+
+      // locctr delta value
+      int delta = 0x3;
+
+      // now cmd has only code
+      if (_SAME_STR (cmd, "RESW"))
+        {
+          if (sscanf (input, "%*s %*s %d", &i) != 1)
+            {
+              printf("[ASSEMBLER] INVALID SYNTAX");
+              printf(" AT %d:[%s]\n", linenum, input);
+              printf("[ASSEMBLER] WARNING: LINE IGNORED.\n");
+              continue;
+            }
+          delta = i * 0x3;
+        }
+      else if (_SAME_STR (cmd, "RESB"))
+        {
+          if (sscanf (input, "%*s %*s %d", &i) != 1)
+            {
+              printf("[ASSEMBLER] INVALID SYNTAX");
+              printf(" AT %d:[%s]\n", linenum, input);
+              printf("[ASSEMBLER] WARNING: LINE IGNORED.\n");
+              continue;
+            }
+          delta = i;
+        }
+      else if (_SAME_STR (cmd, "BYTE"))
+        {
+          if (sscanf (input, "%*s %*s %s", cmd) != 1)
+            {
+              printf("[ASSEMBLER] INVALID SYNTAX");
+              printf(" AT %d:[%s]\n", linenum, input);
+              printf("[ASSEMBLER] WARNING: LINE IGNORED.\n");
+              continue;
+            }
+
+          int numcolon = 0;
+          int numbyte = 0;
+          for(i=0; input[i]!='\0'; ++i)
+            if(input[i] == '\'')
+              ++numcolon;
+          if (numcolon != 2)
+            {
+              printf("[ASSEMBLER] APOSTROPHE DO NOT MATCH");
+              printf(" AT %d:[%s]\n", linenum, input);
+              printf("[ASSEMBLER] WARNING: LINE IGNORED.\n");
+              continue;
+            }
+          for(i=0; input[i]!='\0'; ++i)
+            if(input[i] == '\'')
+              break;
+
+          if (input[i-1] == 'C')
+            {
+              ++i;
+              while (input[i] != '\'')
+                {
+                  ++i;
+                  ++numbyte;
+                }
+              if (input[i+1] != '\0')
+                {
+                  printf("[ASSEMBLER] TRAILING CHARACTERS");
+                  printf(" AT %d:[%s]\n", linenum, input);
+                  puts("[ASSEMBLER] WARNING: LINE IGNORED.");
+                  continue;
+                }
+              delta = numbyte;
+            }
+          else if (input[i-1] == 'X')
+            {
+              numcolon = i;
+
+              // check for chars inside apostrophe
+              for (i=i+1; input[i]!='\''; ++i)
+                if (!(input[i]>='a' && input[i]<='f')
+                    && !(input[i]>='0' && input[i] <= '9')
+                    && !(input[i]>='A' && input[i] <= 'F'))
+                  break;
+
+              // check for trailing chars
+              if (input[i] == '\''
+                  && input[i+1] == '\0'
+                  && sscanf (input + numcolon + 1,
+                             "%x", &numbyte) == 1 )
+                {
+                  sprintf(cmd, "%X", numbyte);
+                  delta = (strlen (cmd) + 1) / 2;
+                }
+              else
+                {
+                  if (input[i] == '\'' && input[i+1] != '\0')
+                    printf("[ASSEMBLER] TRAILING CHARACTERS");
+                  else
+                    printf("[ASSEMBLER] NOT A HEX VALUE");
+                  printf(" AT %d:[%s]\n", linenum, input);
+                  puts("[ASSEMBLER] WARNING: LINE IGNORED.");
+                  continue;
+                }
+            }
+          else
+            {
+              printf("[ASSEMBLER] INVALID SYNTAX");
+              printf(" AT %d:[%s]", linenum, input);
+              printf(" ONLY C OR X CAN BE USED.\n");
+              puts("[ASSEMBLER] WARNING: LINE IGNORED.");
+              continue;
+            }
+        }
+      else
+        {
+          delta = 0x3;
+        }
+
+      linenum += 5;
+      if (!insert_mid_str (linenum,
+                           locctr,
+                           input,
+                           &mid_queue,
+                           true))
+        goto end_assemble;
+      locctr += delta;
 
     }
   while (true);
@@ -367,23 +635,27 @@ end_assemble:
   while (!q_empty(&mid_queue))
     {
       struct q_elem *e = q_delete (&mid_queue);
-      struct mid_elem *me = q_entry (e, struct mid_elem, elem);
+      struct mid_elem *me
+        = q_entry (e, struct mid_elem, elem);
       if (me->line != NULL)
         free (me->line);
       free (me);
     }
   // else save mid file and free
+  // if not assembled, free with getter/setter!
   for (i=0; i<__TABLE_SIZE; ++i)
     {
-      while (!q_empty(&(sym_table[i])))
+      while (!q_empty(&(tmp_symtbl[i])))
         {
-          struct q_elem *e = q_delete (&(sym_table[i]));
-          struct sym_elem *se = q_entry (e, struct sym_elem, elem);
+          struct q_elem *e = q_delete (&(tmp_symtbl[i]));
+          struct sym_elem *se
+            = q_entry (e, struct sym_elem, elem);
           if (se->label != NULL)
             free (se->label);
           free (se);
         }
     }
+  // else save
 
   return is_assembled;
 }
