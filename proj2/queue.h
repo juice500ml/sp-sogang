@@ -32,5 +32,6 @@ void q_insert (struct queue *, struct q_elem *);
 struct q_elem *q_delete (struct queue *q);
 struct q_elem *q_pop (struct queue *);
 bool q_empty (struct queue *);
+unsigned int q_size (struct queue *q);
 
 #endif

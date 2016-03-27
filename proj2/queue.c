@@ -66,3 +66,13 @@ q_empty (struct queue *q)
 {
   return q_begin(q) == q_end(q);
 }
+
+unsigned int
+q_size (struct queue *q)
+{
+  unsigned int i = 0;
+  struct q_elem *e = q_begin(q);
+  for (; e != q_end(q); e = q_next(e))
+    i++;
+  return i;
+}

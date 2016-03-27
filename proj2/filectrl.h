@@ -24,7 +24,7 @@ struct op_elem
   struct q_elem elem;
 };
 
-struct mid_elem
+struct str_elem
 {
   char *line;
   struct q_elem elem;

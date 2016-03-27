@@ -128,6 +128,8 @@ find_size_oplist (char *cmd)
                 return 2;
               else if (_SAME_STR(oe->format, "3/4"))
                 return 3;
+              else
+                puts("[OPLIST] OPLIST IS CORRUPTED");
             }
         }
     }
@@ -248,7 +250,7 @@ static bool
 insert_mid_str (int linenum, uint32_t locctr,
                 char *s, struct queue *q, bool loc_print)
 {
-  struct mid_elem *me = malloc(sizeof(struct mid_elem));
+  struct str_elem *me = malloc(sizeof(struct str_elem));
   if (me == NULL)
     {
       puts("[ASSEMBLER] MEMORY INSUFFICIENT");
@@ -265,6 +267,55 @@ insert_mid_str (int linenum, uint32_t locctr,
     sprintf (me->line, "%4d %04X %s", linenum, locctr, s);
   else  
     sprintf (me->line, "%4d      %s", linenum, s);
+  q_insert (q, &(me->elem));
+  printf("[%s] inserted!\n", me->line);
+  return true;
+}
+
+// input string in queue, if append is true, append str to tail
+static bool
+insert_fin_str (char *s, struct queue *q, bool append)
+{
+  struct str_elem *me;
+  
+  if (append)
+    {
+      if (q_empty (q))
+        {
+          puts("[ASSEMBLER] MEMORY INSUFFICIENT");
+          return false;
+        }
+      me = q_entry(q_end (q)->prev, struct str_elem, elem);
+      char *tmp = realloc (me->line,
+                           strlen (me->line) + strlen (s) + 1);
+      if (tmp == NULL)
+        {
+          puts("[ASSEMBLER] MEMORY INSUFFICIENT");
+          return false;
+        }
+
+      me->line = tmp;
+      strcat (me->line, s);
+    }
+  else
+    {
+      me = malloc(sizeof(struct str_elem));
+      if (me == NULL)
+        {
+          puts("[ASSEMBLER] MEMORY INSUFFICIENT");
+          return false;
+        }
+
+      me->line = malloc(sizeof(char)*(strlen(s)+1));
+      if (me->line == NULL)
+        {
+          puts("[ASSEMBLER] MEMORY INSUFFICIENT");
+          return false;
+        }
+      
+      strcpy (me->line, s);
+    }
+
   q_insert (q, &(me->elem));
   printf("[%s] inserted!\n", me->line);
   return true;
@@ -301,15 +352,19 @@ assemble_file (const char *filename)
   bool is_assembled = false;
   char *input = NULL;
   char *cmd = NULL;
+  char *s = NULL;
   char chk[2];
   uint32_t locctr = 0;
   uint32_t startaddr = 0;
   int linenum = 0;
   int i = 0;
+  struct q_elem *e = NULL;
   struct queue mid_queue;
+  struct queue fin_queue;
   struct queue tmp_symtbl[__TABLE_SIZE];
 
   q_init (&mid_queue);
+  q_init (&fin_queue);
   for (i=0; i<__TABLE_SIZE; ++i)
     q_init (&tmp_symtbl[i]);
 
@@ -535,7 +590,7 @@ assemble_file (const char *filename)
       // locctr delta value
       int delta = 0x3;
 
-      // now cmd has only code
+      // now cmd has only code. find delta
       if (is_type_four)
         delta = 0x4;
       else if (find_size_oplist (cmd) == 1)
@@ -660,20 +715,130 @@ assemble_file (const char *filename)
     }
   while (true);
 
+
+  // PASS 2
+  
+  // Header Record
+  if (!insert_fin_str ((char*)"H", &fin_queue, false))
+    goto end_assemble;
+
+  e = q_begin (&mid_queue);
+  s = q_entry(e, struct str_elem, elem)->line;
+  if (sscanf (s + 10, "%s", cmd) == 1
+      && _SAME_STR(cmd, "START"))
+    {
+      sprintf (input, "      %06X%0X",
+               startaddr, locctr - startaddr);
+
+      e = q_next (e);
+    }
+  else if (sscanf (s + 10, "%*s %s", cmd) == 1
+           && _SAME_STR(cmd, "START"))
+    {
+      sscanf (s + 10, "%s", cmd);
+      sprintf (input, "%6s%06X%06X",
+               cmd, startaddr, locctr - startaddr);
+      e = q_next (e);
+    }
+  else
+    {
+      sprintf (input, "      %06X%0X",
+               startaddr, locctr - startaddr);
+    }
+  insert_fin_str (input, &fin_queue, true);
+
+  // Text Record
+  for (; e != q_end (&mid_queue); e = q_next (e))
+    {
+      int symbol = -1;
+      int code = -1;
+      bool is_type_four = false;
+      s = q_entry(e, struct str_elem, elem)->line;
+      
+      // comments
+      if (s[0] == '.')
+        continue;
+
+      sscanf (s + 10, "%s", cmd);
+      if ((symbol = find_symbol (cmd, tmp_symtbl)) != -1)
+        sscanf (s + 10, "%*s %s", cmd);
+
+      if (cmd[0] == '+')
+        {
+          is_type_four = true;
+          code = find_oplist (&cmd[1]);
+        }
+      else
+        {
+          code = find_oplist (cmd);
+        }
+      
+      // it is opcode
+      if (code != -1)
+        {
+          if (symbol == -1)
+            sscanf (s + 10, "%*s %s", cmd);
+          else
+            sscanf (s + 10, "%*s %*s %s", cmd);
+
+          // TODO: find addr with cmd
+          // immediate
+          if (cmd[0] == '#')
+            {
+
+            }
+          // indirect
+          else if (cmd[0] == '@')
+            {
+
+            }
+          // simple
+          else
+            {
+
+            }
+        }
+      // it is directive
+      else
+        {
+          if (_SAME_STR(cmd, "END"))
+            break;
+          else if (_SAME_STR(cmd, "BASE"))
+            continue;
+          else if (_SAME_STR(cmd, "WORD"))
+            {
+              // TODO
+
+            }
+          else if (_SAME_STR(cmd, "BYTE"))
+            {
+              // TODO
+
+            }
+        }
+    }
+
+  // Mod Record
+
   is_assembled = true;
+
+  // file write
+
 
 end_assemble:
   if (fp != NULL)
     fclose (fp);
   if (input != NULL)
     free (input);
+  if (cmd != NULL)
+    free (cmd);
 
   // if not assembled free
   while (!q_empty(&mid_queue))
     {
       struct q_elem *e = q_delete (&mid_queue);
-      struct mid_elem *me
-        = q_entry (e, struct mid_elem, elem);
+      struct str_elem *me
+        = q_entry (e, struct str_elem, elem);
       puts(me->line);
       if (me->line != NULL)
         free (me->line);
