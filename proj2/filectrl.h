@@ -15,6 +15,7 @@ bool init_oplist (const char *filename);
 int find_oplist (char *cmd);
 void print_oplist (void);
 bool assemble_file (const char *filename);
+void print_symbol_table (void);
 
 struct op_elem
 {

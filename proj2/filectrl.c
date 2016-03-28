@@ -11,8 +11,8 @@
 
 #define __REGISTER_TABLE_SIZE 10
 #define __TYPE2_EXCEPTION_TABLE_SIZE 3
+#define __TABLE_SIZE 20
 
-static const int __TABLE_SIZE = 20;
 static const int __READ_SIZE = 128;
 static struct queue *oplist;
 static struct queue *symbol_table;
@@ -442,11 +442,12 @@ assemble_file (const char *filename)
   struct queue lst_queue;
   struct queue fin_queue;
   struct queue mod_queue;
-  struct queue tmp_symtbl[__TABLE_SIZE];
+  struct queue *tmp_symtbl;
 
   q_init (&lst_queue);
   q_init (&fin_queue);
   q_init (&mod_queue);
+  tmp_symtbl = malloc (sizeof (struct queue) * __TABLE_SIZE);
   for (i=0; i<__TABLE_SIZE; ++i)
     q_init (&tmp_symtbl[i]);
 
@@ -1533,6 +1534,8 @@ assemble_file (const char *filename)
       fclose (new_fp);
       printf("[%s]\n", cmd);
     }
+  else
+    puts ("assemble failed.");
 
 
 end_assemble:
@@ -1572,18 +1575,70 @@ end_assemble:
         free (me->line);
       free (me);
     }
-  for (i=0; i<__TABLE_SIZE; ++i)
+  if (asm_warning)
     {
-      while (!q_empty(&(tmp_symtbl[i])))
+      if (tmp_symtbl != NULL)
         {
-          struct q_elem *e = q_delete (&(tmp_symtbl[i]));
-          struct sym_elem *se
-            = q_entry (e, struct sym_elem, elem);
-          if (se->label != NULL)
-            free (se->label);
-          free (se);
+          for (i = 0; i < __TABLE_SIZE; ++i)
+            {
+              while (!q_empty(&(tmp_symtbl[i])))
+                {
+                  struct q_elem *e = q_delete (&tmp_symtbl[i]);
+                  struct sym_elem *se
+                    = q_entry (e, struct sym_elem, elem);
+                  if (se->label != NULL)
+                    free (se->label);
+                  free (se);
+                }
+            }
+          free (tmp_symtbl);
         }
+      if (symbol_table != NULL)
+        for (i = 0; i < __TABLE_SIZE; ++i)
+          {
+            while (!q_empty(&(symbol_table[i])))
+              {
+                struct q_elem *e = q_delete (&symbol_table[i]);
+                struct sym_elem *se
+                  = q_entry (e, struct sym_elem, elem);
+                if (se->label != NULL)
+                  free (se->label);
+                free (se);
+              }
+          }
+      symbol_table = NULL;
     }
+  else
+    symbol_table = tmp_symtbl;
 
   return !asm_warning;
+}
+
+void
+print_symbol_table (void)
+{
+  if (symbol_table == NULL)
+    return;
+  unsigned int i, j = 0, totelem = 0;
+  for (i = 0; i < __TABLE_SIZE; ++i)
+    totelem += q_size(&symbol_table[i]);
+  struct sym_elem **se = malloc (sizeof(struct sym_elem *)
+                                 * totelem);
+  for (i = 0; i < __TABLE_SIZE; ++i)
+    {
+      struct q_elem *e = q_begin (&symbol_table[i]);
+      for(; e != q_end (&symbol_table[i]); e = q_next (e))
+        se[j++] = q_entry (e, struct sym_elem, elem);
+    }
+  for (i = 0; i < totelem; ++i)
+    for (j = i + 1; j < totelem; ++j)
+      if ( strcmp(se[i]->label, se[j]->label) > 0)
+        {
+          struct sym_elem *tmp = se[i];
+          se[i] = se[j];
+          se[j] = tmp;
+        }
+  for (i = 0; i < totelem; ++i)
+    printf ("\t%s\t%04X\n", se[i]->label, se[i]->locctr);
+  free (se);
 }

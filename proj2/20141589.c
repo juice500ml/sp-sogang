@@ -422,8 +422,7 @@ main(void)
               break;
             }
 
-          // TODO: Symbol Table!
-          printf("CMD_SYMBOL\n");
+          print_symbol_table ();
           is_valid_cmd = true;
 
           break;

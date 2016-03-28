@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-c -Wall -O3
+CFLAGS=-c -g -Wall -O3
 SOURCES=20141589.c queue.c hexctrl.c filectrl.c
 EXECUTABLE=20141589.out
 OBJECTS=$(SOURCES:.c=.o)
