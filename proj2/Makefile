@@ -1,6 +1,5 @@
 CC=gcc
 CFLAGS=-c -Wall -O3
-LDFLAGS=
 SOURCES=20141589.c queue.c hexctrl.c filectrl.c
 EXECUTABLE=20141589.out
 OBJECTS=$(SOURCES:.c=.o)
@@ -8,7 +7,7 @@ OBJECTS=$(SOURCES:.c=.o)
 all: $(SOURCES) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS) 
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+	$(CC) $(OBJECTS) -o $@
 
 .c.o:
 	$(CC) $(CFLAGS) $< -o $@
