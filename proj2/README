@@ -33,3 +33,15 @@ Text file that opcode is stored is not saved properly.
 
   [OPCODE] MEMORY INSUFFICIENT
 Memory allocation for opcode list has failed.
+
+  [ASSEMBLER] MEMORY INSUFFICIENT
+Memory allocation for asssembler has failed.
+
+  [ASSEMBLER] {{__ASM_FILENAME}} IS EMPTY
+File is empty.
+
+  [ASSEMBLER] {{ SYNTAX_ERROR }} AT {{ SOURCE LINE NUMBER }}: [{{ SOURCE LINE }}]
+Assembly file has syntax error.
+
+  [ASSEMBLER][DEBUG] {{ }}
+Debug messages for assembler
