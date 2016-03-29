@@ -881,12 +881,13 @@ assemble_file (const char *filename)
     }
   else
     {
+      // TODO: where did the error go?
       sprintf (input, "      %06X%0X",
                startaddr, locctr - startaddr);
     }
   if (!insert_fin_str (input, &fin_queue, true))
     goto end_assemble;
-
+  
   // Text Record
   if (!insert_fin_str ((char*)"", &fin_queue, false))
     goto end_assemble;
@@ -1486,10 +1487,13 @@ assemble_file (const char *filename)
   for (e=q_begin(&fin_queue); e!=q_end(&fin_queue); e=q_next(e))
     {
       s = q_entry (e, struct str_elem, elem)->line;
-      i = strlen(s)-9;
-      sprintf (input, "%02X", i/2);
-      s[7] = input[0];
-      s[8] = input[1];
+      if (s[0] == 'T')
+        {
+          i = strlen(s)-9;
+          sprintf (input, "%02X", i/2);
+          s[7] = input[0];
+          s[8] = input[1];
+        }
     }
 
   // no warning generated.
@@ -1534,8 +1538,6 @@ assemble_file (const char *filename)
       fclose (new_fp);
       printf("[%s]\n", cmd);
     }
-  else
-    puts ("assemble failed.");
 
 
 end_assemble:
@@ -1611,6 +1613,9 @@ end_assemble:
   else
     symbol_table = tmp_symtbl;
 
+  if (asm_warning)
+    puts ("assemble failed.");
+  
   return !asm_warning;
 }
 

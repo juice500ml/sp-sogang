@@ -1,5 +1,5 @@
   1. How to build
-Type "make". To clean up and only leave source codes, type "make clean".
+Type "make". To clean up .lst, .obj, .o files and only leave source codes, type "make clean".
 
 
   2. How to run
