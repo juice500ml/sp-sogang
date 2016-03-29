@@ -244,6 +244,8 @@ memory_clear:
 static int
 find_symbol (char *label, struct queue tbl[])
 {
+  if (label == NULL)
+    return -1;
   uint64_t i = str_hash (label) % __TABLE_SIZE;
   if (!q_empty(&tbl[i]))
     {
@@ -847,7 +849,9 @@ assemble_file (const char *filename)
 
     }
   while (true);
-  baseaddr = find_symbol (base_sym, tmp_symtbl);
+
+  if (base_sym != NULL)
+    baseaddr = find_symbol (base_sym, tmp_symtbl);
   if (baseaddr == -1)
     {
       printf ("[ASSEMBLER] BASE SYMBOL [%s]", base_sym);
@@ -1232,7 +1236,7 @@ assemble_file (const char *filename)
                           xbpe += 2;
                           disp -= pc;
                         }
-                      else if ( (disp-baseaddr) >= 0
+                      else if ( base_sym!=NULL && (disp-baseaddr) >= 0
                                && (disp-baseaddr) <= 4095)
                         {
                           // b=1, p=0
@@ -1292,7 +1296,7 @@ assemble_file (const char *filename)
                       xbpe += 2;
                       disp -= pc;
                     }
-                  else if ( (disp-baseaddr) >= 0
+                  else if ( base_sym != NULL && (disp-baseaddr) >= 0
                            && (disp-baseaddr) <= 4095)
                     {
                       // b=1, p=0
