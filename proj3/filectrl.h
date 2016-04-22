@@ -10,6 +10,8 @@
 
 bool is_file (const char *filename);
 bool print_file (const char *filename);
+struct queue *save_file (const char *filename);
+void free_file (struct queue *file);
 void free_oplist (void);
 bool init_oplist (const char *filename);
 int find_oplist (char *cmd);

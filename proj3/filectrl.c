@@ -48,10 +48,89 @@ print_file (const char *filename)
 
   while((c=fgetc(fp))!=EOF)
     putchar(c);
+  fclose(fp);
   return true;
 }
 
-void free_oplist (void)
+// removes all trailing whitespaces
+struct queue *
+save_file (const char *filename)
+{
+  if (!is_file(filename))
+    return NULL;
+
+  struct queue *q = malloc (sizeof (struct queue));
+  if (q == NULL)
+    return NULL;
+
+  q_init (q);
+
+  FILE *fp = fopen(filename, "r");
+  char buf[128];
+  int i;
+
+  while (fgets(buf, 128, fp) != NULL)
+    {
+      // cut all trailing whitespace
+      for (i=strlen(buf) - 1; i >= 0; --i)
+        {
+          if (buf[i] == ' ' || buf[i] == '\t' || buf[i] == '\n')
+            buf[i] = '\0';
+          else
+            break;
+        }
+      // do not save empty line when whitespace is deleted
+      if (strlen(buf) == 0)
+        continue;
+
+      struct str_elem *se = malloc (sizeof(struct str_elem));
+      char *line = malloc ((strlen(buf)+1) * sizeof(char));
+
+      if (se == NULL || line == NULL)
+        {
+          if (se != NULL)
+            free (se);
+          if (line != NULL)
+            free (line);
+          while (!q_empty (q))
+            {
+              struct q_elem *e = q_delete(q);
+              se = q_entry (e, struct str_elem, elem);
+              if (se->line != NULL)
+                free(se->line);
+              free(se);
+            }
+          free (q);
+          puts("[FILEIO] MEMORY INSUFFICIENT");
+          return NULL;
+        }
+
+      strcpy (line, buf);
+      se->line = line;
+      q_insert (q, &se->elem);
+    }
+
+  fclose(fp);
+  return q;
+}
+
+void
+free_file (struct queue *file)
+{
+  if (file == NULL)
+    return;
+  while (!q_empty (file))
+    {
+      struct q_elem *e = q_delete (file);
+      struct str_elem *se = q_entry (e, struct str_elem, elem);
+      if (se->line != NULL)
+        free (se->line);
+      free (se);
+    }
+}
+
+void
+free_oplist (void)
 {
   if (oplist == NULL)
     return;
