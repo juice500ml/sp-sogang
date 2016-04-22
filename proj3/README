@@ -1,0 +1,47 @@
+  1. How to build
+Type "make". To clean up .lst, .obj, .o files and only leave source codes, type "make clean".
+
+
+  2. How to run
+After building, "20141589.out" binary file is generated. That file is the whole sicsim. opcode.txt has to be existent together in same folder. If the opcode.txt has to be switched to another file, change __OPCODE_FILENAME into desired file, and rebuild the sicsim.
+
+
+  3. Errors
+  OUT OF MEMORY BOUNDS
+Printed when "dump" is called out of memory. Note that when "dump" is typed, output has default 10 lines.
+
+  MEMORY INSUFFICIENT
+Memory allocation for sicsim has failed.
+
+  COMMAND SIZE IS TOO BIG
+Command input is too long to be processed. This can be solved by increasing __CMD_FORMAT_SIZE
+
+  WRONG INSTRUCTION
+sicsim cannot understand the instruction.
+
+  FILE NOT FOUND
+File status reading has failed, or file is not existent.
+
+  {{cmd}}: NO SUCH OPCODE
+No such opcode is not found in input opcode text file.
+
+  [OPCODE] {{__OPCODE_FILENAME}} NOT FOUND
+Text file that opcode is stored is not found.
+
+  [OPCODE] {{__OPCODE_FILENAME}} IS BROKEN
+Text file that opcode is stored is not saved properly.
+
+  [OPCODE] MEMORY INSUFFICIENT
+Memory allocation for opcode list has failed.
+
+  [ASSEMBLER] MEMORY INSUFFICIENT
+Memory allocation for asssembler has failed.
+
+  [ASSEMBLER] {{__ASM_FILENAME}} IS EMPTY
+File is empty.
+
+  [ASSEMBLER] {{ SYNTAX_ERROR }} AT {{ SOURCE LINE NUMBER }}: [{{ SOURCE LINE }}]
+Assembly file has syntax error.
+
+  [ASSEMBLER][DEBUG] {{ }}
+Debug messages for assembler
