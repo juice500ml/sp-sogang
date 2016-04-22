@@ -112,6 +112,7 @@ main(void)
       struct dirent *dir = NULL;
       char check[2];
       bool is_valid_cmd = false;
+      char *tok = NULL;
 
       printf("%s", __SHELL_FORM);
       if (!get_chars(input, __INPUT_SIZE))
@@ -450,7 +451,23 @@ main(void)
           break;
 
         case CMD_LOADER:
-          // TODO
+          init_loader ();
+          tok = strtok (input, " ");
+          while ( (tok = strtok (NULL, " ")) != NULL)
+            {
+              if (!is_file (tok))
+                {
+                  printf ("[%s]: INVALID FILE\n", tok);
+                  free_loader ();
+                  break;
+                }
+              if (!add_obj_loader (tok))
+                {
+                  printf ("[%s]: LOADER FAILED\n", tok);
+                  free_loader ();
+                  break;
+                }
+            }
           is_valid_cmd = true;
 
           break;
@@ -512,6 +529,7 @@ memory_clear:
       free(ce);
     }
   free_oplist ();
+  free_loader ();
 
   return 0;
 }
