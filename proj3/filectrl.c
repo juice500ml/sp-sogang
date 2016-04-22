@@ -885,7 +885,6 @@ assemble_file (const char *filename)
     }
   else
     {
-      // TODO: where did the error go?
       sprintf (input, "      %06X%0X",
                startaddr, locctr - startaddr);
     }
@@ -1336,7 +1335,6 @@ assemble_file (const char *filename)
                                    code, xbpe, &input[i]);
                         }
                     }
-                  // TODO if it is type four, mod record!
                 }
             }
           else

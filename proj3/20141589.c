@@ -2,6 +2,7 @@
 #include "queue.h"
 #include "hexctrl.h"
 #include "filectrl.h"
+#include "objctrl.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,7 +16,7 @@
 #define _SAME_STR(s1,s2) (strcmp(s1,s2)==0)
 
 #define __CMD_FORMAT_SIZE 32
-#define __CMD_TABLE_SIZE 13
+#define __CMD_TABLE_SIZE 17
 #define __SHORT_CMD_TABLE_SIZE 7
 
 // FIXED VARIABLES
@@ -28,7 +29,8 @@ static const char __CMD_FORMAT[__CMD_FORMAT_SIZE];
 static const char *__CMD_TABLE[__CMD_TABLE_SIZE] =\
 {"help", "dir", "quit", "history", "dump",\
   "edit", "fill", "reset", "opcode", "opcodelist",\
-  "assemble", "type", "symbol"};
+  "assemble", "type", "symbol", "progaddr", "loader",\
+  "run", "bp"};
 static const char *__SHORT_CMD_TABLE[__SHORT_CMD_TABLE_SIZE] =\
 {"h","d","q","hi","du","e","f"};
 static const char *__SHELL_FORM = "sicsim> ";
@@ -36,7 +38,9 @@ static const char *__HELP_FORM = "h[elp]\nd[ir]\nq[uit]\n\
 hi[story]\ndu[mp] [start, end]\ne[dit] \
 address, value\nf[ill] start, end, value\n\
 reset\nopcode mnemonic\nopcodelist\n\
-assemble filename\ntype filename\nsymbol";
+assemble filename\ntype filename\nsymbol\n\
+progaddr [address]\nloader [object filename1] \
+[object filename2] [...]\nrun\nbp";
 
 
 // Deletes every char input after size.
@@ -423,6 +427,42 @@ main(void)
             }
 
           print_symbol_table ();
+          is_valid_cmd = true;
+
+          break;
+
+        case CMD_PROGADDR:
+          if(sscanf(input, "%*s %*x %1s", check) == 1
+             || sscanf(input, "%*s %x", &i) != 1)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
+          if (i < 0 || i >= __MEMORY_SIZE)
+            {
+              puts("INVALID PROGRAM ADDRESS");
+              break;
+            }
+
+          set_progaddr ((uint32_t) i);
+          is_valid_cmd = true;
+
+          break;
+
+        case CMD_LOADER:
+          // TODO
+          is_valid_cmd = true;
+
+          break;
+
+        case CMD_RUN:
+          // TODO
+          is_valid_cmd = true;
+
+          break;
+
+        case CMD_BP:
+          // TODO
           is_valid_cmd = true;
 
           break;

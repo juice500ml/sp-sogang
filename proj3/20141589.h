@@ -18,6 +18,10 @@ enum cmd_flags
   CMD_ASSEMBLE = 10,
   CMD_TYPE = 11,
   CMD_SYMBOL = 12,
+  CMD_PROGADDR = 13,
+  CMD_LOADER = 14,
+  CMD_RUN = 15,
+  CMD_BP = 16,
 };
 
 struct cmd_elem
