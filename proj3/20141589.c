@@ -457,30 +457,35 @@ main(void)
             {
               if (!is_file (tok))
                 {
-                  printf ("[%s]: INVALID FILE\n", tok);
+                  printf ("[%s]: INVALID FILE", tok);
                   free_loader ();
                   break;
                 }
               if (!add_obj_loader (tok))
                 {
-                  printf ("[%s]: LOADER FAILED\n", tok);
+                  printf ("[%s]: LOADER FAILED", tok);
                   free_loader ();
                   break;
                 }
             }
-          if (get_proglen () + get_progaddr () >= __MEMORY_SIZE)
+
+          // if normally added
+          if (tok == NULL)
             {
-              puts ("PROGRAM IS TOO BIG: LOADER FAILED\n");
-              free_loader ();
-              break;
+              if (get_proglen()+get_progaddr() >= __MEMORY_SIZE)
+                {
+                  puts ("PROGRAM IS TOO BIG: LOADER FAILED");
+                  free_loader ();
+                  break;
+                }
+              if (!run_obj_loader (mem))
+                {
+                  puts ("LOADER FAILED");
+                  free_loader ();
+                  break;
+                }
+              print_load_map ();
             }
-          if (!run_obj_loader (mem))
-            {
-              puts ("LOADER FAILED\n");
-              free_loader ();
-              break;
-            }
-          print_load_map ();
           is_valid_cmd = true;
 
           break;

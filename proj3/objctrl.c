@@ -8,8 +8,22 @@
 #define _SAME_STR(s1,s2) (strcmp(s1,s2)==0)
 
 static uint32_t progaddr = 0x0;
+static uint32_t startaddr = 0x0;
 static uint32_t proglen = 0x0;
 static struct queue *obj_list = NULL;
+
+// getter/setter for startaddr
+static void
+set_startaddr (uint32_t addr)
+{
+  startaddr = addr;
+}
+
+static uint32_t
+get_startaddr (void)
+{
+  return startaddr;
+}
 
 // getter/setter for proglen
 static void
@@ -18,7 +32,7 @@ set_proglen (uint32_t len)
   proglen = len;
 }
 
-static uint32_t
+uint32_t
 get_proglen (void)
 {
   return proglen;
@@ -66,7 +80,7 @@ static int
 parse_chars_hex (char *l, int len, bool sign)
 {
   char tmp = l[len];
-  int i;
+  int i = 0;
   l[len] = '\0';
   sscanf(l, "%x", &i);
   l[len] = tmp;
@@ -148,8 +162,22 @@ d_syntax_checker (char *l)
 static bool
 r_syntax_checker (char *l)
 {
-  return l[0] == 'R'
-    && strlen (l) > 1;
+  int len = strlen(l);
+  int i;
+
+  for (i = 1; i < len; i += 8)
+    {
+      if (!is_chars_hex (&l[i], 2))
+        return false;
+      if (parse_chars_hex (&l[i], 2, false) < 0)
+        return false;
+      char *tmp = alloc_str_cpy (&l[i+2], 6);
+      int tmplen = strlen (tmp);
+      free (tmp);
+      if (tmplen <= 0)
+        return false;
+    }
+  return l[0] == 'R';
 }
 
 // wrapper for record syntax checkers
@@ -295,6 +323,7 @@ find_sym_list (char *label)
   return addr;
 }
 
+// freeing symbol list (with itself)
 static void
 free_sym_list (struct queue *sym_list)
 {
@@ -318,8 +347,8 @@ make_sym_list (struct prog_elem *prog)
     return NULL;
 
   struct queue *obj_file = prog->obj_file;
-  struct q_elem *e = q_begin (obj_file);
   struct queue *q = malloc (sizeof (struct queue));
+  int vaddr = 0;
   if (q == NULL)
     {
       puts ("[LOADER] MEMORY INSUFFICIENT");
@@ -327,6 +356,15 @@ make_sym_list (struct prog_elem *prog)
     }
   q_init (q);
 
+  struct q_elem *e = q_begin (obj_file);
+  for (; e != q_end (obj_file); e = q_next (e))
+    {
+      struct str_elem *se = q_entry (e, struct str_elem, elem);
+      if (se->line[0] == 'H')
+        vaddr = parse_chars_hex (se->line+7, 6, false);
+    }
+
+  e = q_begin (obj_file);
   for (; e != q_end (obj_file); e = q_next (e))
     {
       struct str_elem *se = q_entry (e, struct str_elem, elem);
@@ -370,7 +408,8 @@ make_sym_list (struct prog_elem *prog)
               // obj_addr + hex value from D record
               syme->locctr =
                 parse_chars_hex (se->line+7+i*12, 6, false)
-                + prog->obj_addr;
+                + prog->obj_addr
+                - vaddr;
               q_insert (q, &syme->elem);
             }
         }
@@ -405,6 +444,33 @@ find_ctr_name (struct queue *obj_file)
     }
   // if NULL, no header record
   return name;
+}
+
+// add val to mem pointing (len half bytes)
+static void
+add_mem (uint8_t *mem, int half_bytes, int val)
+{
+  int i;
+  int ori = 0;
+  int len = half_bytes;
+
+  for (i = 0; i < (len+1)/2; ++i)
+    {
+      ori <<= 8;
+      if (i==0 && len%2==1)
+        ori += mem[i] % (1<<4);
+      else
+        ori += mem[i];
+    }
+  ori += val;
+  for (i = (len-1)/2; i >= 0; --i)
+    {
+      if (i==0 && len%2==1)
+        mem[i] = (mem[i]/(1<<4))*(1<<4) + ori%(1<<8);
+      else
+        mem[i] = ori%(1<<8);
+      ori >>= 8;
+    }
 }
 
 void
@@ -443,6 +509,7 @@ void
 set_progaddr (uint32_t addr)
 {
   progaddr = addr;
+  set_startaddr (addr);
 }
 
 uint32_t
@@ -510,6 +577,186 @@ add_obj_loader (const char *filename)
       return false;
     }
 
+  return true;
+}
+
+// load objects (pass2)
+bool
+run_obj_loader (uint8_t *mem)
+{
+  if (mem == NULL)
+    {
+      puts ("[ERROR][DEBUG] NO mem AT run_obj_loader");
+      return false;
+    }
+  if (obj_list == NULL)
+    {
+      puts ("[ERROR][DEBUG] NO obj_list AT run_obj_loader");
+      return false;
+    }
+
+  struct q_elem *e = q_begin (obj_list);
+  bool is_end_fixed = false;
+  for (; e != q_end (obj_list); e = q_next (e))
+    {
+      struct prog_elem *prog =
+        q_entry(e, struct prog_elem, elem);
+      struct queue *obj_file = prog->obj_file;
+
+      // start of obj addr
+      int oaddr = prog->obj_addr;
+      // end of obj addr
+      int eaddr = oaddr + prog->obj_len;
+
+      // refer record init
+      int i;
+      for (i = 0; i < 0xff; ++i)
+        prog->refer[i] = -1;
+      prog->refer[1] = prog->obj_addr;
+
+      // refer record lookup
+      struct q_elem *fe = q_begin (obj_file);
+      for (; fe != q_end (obj_file); fe = q_next (fe))
+        {
+          char *line =
+            q_entry(fe, struct str_elem, elem)->line;
+          if (line[0] == 'R')
+            {
+              int i;
+              int len = strlen (line);
+              for (i = 1; i < len; i += 8)
+                {
+                  int ri = parse_chars_hex (&line[i], 2, false);
+                  char *tmp = alloc_str_cpy (&line[i+2], 6);
+                  prog->refer[ri] = find_sym_list (tmp);
+                  free (tmp);
+                  if (prog->refer[ri] < 0)
+                    {
+                      printf ("[%s] EXTERNAL",prog->ctrl_name);
+                      printf (" SYMBOL OF R RECORD NOT FOUND\n");
+                      printf ("LINE [%s] FAILED\n", line);
+                    }
+                }
+            }
+        }
+
+      // vaddr check
+      int vaddr = 0;
+      fe = q_begin (obj_file);
+      for (; fe != q_end (obj_file); fe = q_next (fe))
+        {
+          char *line =
+            q_entry(fe, struct str_elem, elem)->line;
+          if (line[0] == 'H')
+            {
+              vaddr = parse_chars_hex (line+7, 6, false);
+              break;
+            }
+        }
+
+      // memory input
+      fe = q_begin (obj_file);
+      for (; fe != q_end (obj_file); fe = q_next (fe))
+        {
+          char *line =
+            q_entry(fe, struct str_elem, elem)->line;
+          if (line[0] == 'T')
+            {
+              // start address for Text record
+              int saddr =
+                parse_chars_hex (line+1, 6, false);
+              int len =
+                parse_chars_hex (line+7, 2, false);
+              int i;
+              for (i=0;i<len;++i)
+                {
+                  uint8_t u =
+                    parse_chars_hex (line+i*2+9, 2, false);
+                  int raddr = saddr - vaddr + oaddr + i;
+                  if (raddr >= eaddr)
+                    {
+                      printf ("[%s] ADDRESS",prog->ctrl_name);
+                      printf (" EXCEEDS HEADER RECORD");
+                      printf (" SIZE OF PROGRAM ADDRESS\n");
+                      printf ("LINE [%s] FAILED\n", line);
+                      return false;
+                    }
+                  if (raddr < oaddr)
+                    {
+                      printf ("[%s] ADDRESS",prog->ctrl_name);
+                      printf (" IS SMALLER THAN");
+                      printf (" PROGRAM ADDRESS\n");
+                      printf ("LINE [%s] FAILED\n", line);
+                      return false;
+                    }
+                  mem[raddr] = u;
+                }
+            }
+        }
+
+      // modify record
+      fe = q_begin (obj_file);
+      for (; fe != q_end (obj_file); fe = q_next (fe))
+        {
+          char *line =
+            q_entry(fe, struct str_elem, elem)->line;
+          if (line[0] == 'M')
+            {
+              int saddr = parse_chars_hex (line+1, 6, false);
+              int raddr = saddr - vaddr + oaddr;
+              if (raddr >= eaddr)
+                {
+                  printf ("[%s] ADDRESS",prog->ctrl_name);
+                  printf (" EXCEEDS HEADER RECORD");
+                  printf (" SIZE OF PROGRAM ADDRESS\n");
+                  printf ("LINE [%s] FAILED\n", line);
+                  return false;
+                }
+              if (raddr < oaddr)
+                {
+                  printf ("[%s] ADDRESS",prog->ctrl_name);
+                  printf (" IS SMALLER THAN");
+                  printf (" PROGRAM ADDRESS\n");
+                  printf ("LINE [%s] FAILED\n", line);
+                  return false;
+                }
+
+              int ri = parse_chars_hex (line+10, 6, false);
+              int bytes = parse_chars_hex (line+7, 2, false);
+              if (prog->refer[ri] < 0)
+                {
+                  printf ("[%s] EXTERNAL",prog->ctrl_name);
+                  printf (" SYMBOL NOT FOUND\n");
+                  printf ("LINE [%s] FAILED\n", line);
+                  return false;
+                }
+              int val = prog->refer[ri];
+              if (line[9] == '-')
+                val = -val;
+              add_mem (mem + raddr, bytes, val);
+            }
+        }
+
+      // end record
+      fe = q_begin (obj_file);
+      for (; fe != q_end (obj_file); fe = q_next (fe))
+        {
+          char *line =
+            q_entry(fe, struct str_elem, elem)->line;
+          if (line[0] == 'E' && strlen(line) == 7)
+            {
+              if (is_end_fixed)
+                {
+                  printf ("[%s] MULTIPLE END", prog->ctrl_name);
+                  printf (" RECORD START ADDRESSES\n");
+                  printf ("LINE [%s] FAILED\n", line);
+                  return false;
+                }
+              int saddr = parse_chars_hex (line+1, 6, false);
+              set_startaddr (saddr);
+            }
+        }
+    }
   return true;
 }
 

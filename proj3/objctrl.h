@@ -7,10 +7,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+uint32_t get_proglen (void);
 void set_progaddr (uint32_t addr);
 uint32_t get_progaddr (void);
 void init_loader (void);
 bool add_obj_loader (const char *filename);
+bool run_obj_loader (uint8_t *mem);
 void free_loader (void);
 void print_load_map (void);
 
@@ -21,6 +23,7 @@ struct prog_elem
   char *ctrl_name;
   int obj_addr;
   int obj_len;
+  int refer[256];
   struct q_elem elem;
 };
 
