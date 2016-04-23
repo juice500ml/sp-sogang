@@ -11,6 +11,7 @@ static uint32_t progaddr = 0x0;
 static uint32_t startaddr = 0x0;
 static uint32_t proglen = 0x0;
 static struct queue *obj_list = NULL;
+static struct breakpoint *bp = NULL;
 
 // getter/setter for startaddr
 static void
@@ -794,6 +795,106 @@ print_load_map (void)
 
   for (i=0;i<60;++i) putchar('-');
   puts ("");
-  printf ("      \t\t      \t\ttotal length\t%04X\n",
-          get_proglen ());
+  printf ("   \t\t    \t\ttotal length\t%04X\n", get_proglen ());
+}
+
+// check if address has to be stopped by breakpoint
+bool
+check_bp (uint32_t addr, uint32_t len)
+{
+  while (bp->cursor < bp->len && bp->addr[bp->cursor] < addr)
+    bp->cursor ++;
+  if (bp->cursor == bp->len)
+    return false;
+  if (bp->addr[bp->cursor] >= addr
+      && bp->addr[bp->cursor] < addr + len)
+    {
+      bp->cursor ++;
+      return true;
+    }
+  return false;
+}
+
+// add another bp
+bool
+add_bp (uint32_t addr)
+{
+  if (bp == NULL)
+    {
+      bp = malloc (sizeof (struct breakpoint));
+      if (bp == NULL)
+        {
+          puts ("[BREAKPOINT] MEMORY INSUFFICIENT");
+          return false;
+        }
+      bp->addr = malloc (sizeof (int));
+      if (bp->addr == NULL)
+        {
+          free (bp);
+          puts ("[BREAKPOINT] MEMORY INSUFFICIENT");
+          return false;
+        }
+      bp->addr[0] = addr;
+      bp->len = 1;
+      bp->cursor = 0;
+    }
+  else
+    {
+      int i, curr;
+      for (i = 0; i < bp->len; ++i)
+        if (bp->addr[i] >= addr)
+          break;
+      if (i < bp->len && bp->addr[i] == addr)
+        {
+          puts ("[BREAKPOINT] DUPLICATE BREAKPOINT");
+          return false;
+        }
+      curr = i;
+
+      uint32_t *tmp =
+        realloc (bp->addr, (bp->len + 1) * sizeof (uint32_t));
+      if (tmp == NULL)
+        {
+          free (bp->addr);
+          free (bp);
+          puts ("[BREAKPOINT] MEMORY INSUFFICIENT");
+          return false;
+        }
+      bp->addr = tmp;
+      bp->len += 1;
+      for (i = bp->len - 1; i > curr; --i)
+        bp->addr[i] = bp->addr[i-1];
+      bp->addr[curr] = addr;
+    }
+  return true;
+}
+
+// print breakpoints
+void
+print_bp (void)
+{
+  puts ("\tbreakpoint");
+  puts ("\t----------");
+
+  if (bp == NULL)
+    {
+      puts ("\t(none)");
+      return;
+    }
+  int i;
+  for (i = 0; i < bp->len; ++i)
+    printf ("\t%X\n", bp->addr[i]);
+}
+
+// free breakpoints
+void
+free_bp (void)
+{
+  if (bp != NULL)
+    {
+      if (bp->addr != NULL)
+        free (bp->addr);
+      free (bp);
+      bp = NULL;
+    }
 }

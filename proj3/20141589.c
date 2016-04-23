@@ -497,7 +497,39 @@ main(void)
           break;
 
         case CMD_BP:
-          // TODO
+          if(sscanf(input, "%*s %1s", check) != 1)
+            {
+              print_bp ();
+              is_valid_cmd = true;
+              break;
+            }
+          if(sscanf(input, "%*s %6s %1s", cmd, check) == 2
+             || sscanf(input, "%*s %6s", cmd) != 1)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
+          if (_SAME_STR(cmd, "clear"))
+            {
+              puts ("\t[ok] clear all breakpoints");
+              free_bp ();
+              is_valid_cmd = true;
+              break;
+            }
+
+          if(sscanf(input, "%*s %*x %1s", check) == 1
+             || sscanf(input, "%*s %x", &start) != 1)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
+          if (start >= __MEMORY_SIZE)
+            {
+              puts ("INVALID BREAKPOINT ADDRESS");
+              break;
+            }
+          if (add_bp (start))
+            printf ("\t[ok] create breakpoint %x\n", start);
           is_valid_cmd = true;
 
           break;
@@ -548,6 +580,7 @@ memory_clear:
     }
   free_oplist ();
   free_loader ();
+  free_bp ();
 
   return 0;
 }

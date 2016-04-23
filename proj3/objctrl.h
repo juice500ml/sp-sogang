@@ -15,6 +15,10 @@ bool add_obj_loader (const char *filename);
 bool run_obj_loader (uint8_t *mem);
 void free_loader (void);
 void print_load_map (void);
+bool check_bp (uint32_t addr, uint32_t len);
+bool add_bp (uint32_t addr);
+void print_bp (void);
+void free_bp (void);
 
 struct prog_elem
 {
@@ -25,6 +29,13 @@ struct prog_elem
   int obj_len;
   int refer[256];
   struct q_elem elem;
+};
+
+struct breakpoint
+{
+  uint32_t *addr;
+  int len;
+  int cursor;
 };
 
 #endif
