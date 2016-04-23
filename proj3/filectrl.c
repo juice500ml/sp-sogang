@@ -127,6 +127,7 @@ free_file (struct queue *file)
         free (se->line);
       free (se);
     }
+  free (file);
 }
 
 void

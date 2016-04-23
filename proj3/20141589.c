@@ -468,6 +468,7 @@ main(void)
                   break;
                 }
             }
+          print_load_map ();
           is_valid_cmd = true;
 
           break;
