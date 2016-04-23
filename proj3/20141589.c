@@ -345,7 +345,7 @@ main(void)
                 }
               i = find_oplist (cmd);
               if (i != -1)
-                printf("opcode is %2X\n", i);
+                printf("opcode is %02X\n", i);
               else
                 {
                   printf("%s: NO SUCH OPCODE\n", cmd);
@@ -467,6 +467,18 @@ main(void)
                   free_loader ();
                   break;
                 }
+            }
+          if (get_proglen () + get_progaddr () >= __MEMORY_SIZE)
+            {
+              puts ("PROGRAM IS TOO BIG: LOADER FAILED\n");
+              free_loader ();
+              break;
+            }
+          if (!run_obj_loader (mem))
+            {
+              puts ("LOADER FAILED\n");
+              free_loader ();
+              break;
             }
           print_load_map ();
           is_valid_cmd = true;
