@@ -457,13 +457,13 @@ main(void)
             {
               if (!is_file (tok))
                 {
-                  printf ("[%s]: INVALID FILE", tok);
+                  printf ("[%s]: INVALID FILE\n", tok);
                   free_loader ();
                   break;
                 }
               if (!add_obj_loader (tok))
                 {
-                  printf ("[%s]: LOADER FAILED", tok);
+                  printf ("[%s]: LOADER FAILED\n", tok);
                   free_loader ();
                   break;
                 }
@@ -487,6 +487,7 @@ main(void)
                 }
               print_load_map ();
             }
+          free_loader ();
           is_valid_cmd = true;
 
           break;
@@ -503,7 +504,8 @@ main(void)
               free_run ();
               break;
             }
-          run ();
+          run (mem);
+          free_run ();
           is_valid_cmd = true;
 
           break;

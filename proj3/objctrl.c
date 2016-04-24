@@ -8,7 +8,9 @@
 #define _SAME_STR(s1,s2) (strcmp(s1,s2)==0)
 
 #define __REGISTER_TABLE_SIZE 10
-#define __BOOT_ADDRESS ((1 << 21) - 1)
+#define __REGISTER_SIZE (1 << 24)
+#define __BOOT_ADDRESS ((1 << 20) - 1)
+#define __INVALID (1 << 21)
 
 
 static uint32_t progaddr = 0x0;
@@ -42,6 +44,29 @@ uint32_t
 get_proglen (void)
 {
   return proglen;
+}
+
+// getter/setter for progaddr
+void
+set_progaddr (uint32_t addr)
+{
+  progaddr = addr;
+  set_startaddr (addr);
+}
+
+uint32_t
+get_progaddr (void)
+{
+  return progaddr;
+}
+
+// validate as validate address inside program
+// if not validated, it is seg fault
+static bool
+validate_addr (uint32_t addr)
+{
+  return addr >= get_progaddr ()
+    && addr <= get_progaddr () + get_proglen ();
 }
 
 // check if string is hex
@@ -490,7 +515,7 @@ set_mem (uint8_t *mem, uint8_t half_bytes, uint64_t val)
   for (i = (len-1)/2; i >= 0; --i)
     {
       if (i==0 && len%2==1)
-        mem[i] = (mem[i]/(1<<4))*(1<<4) + val%(1<<8);
+        mem[i] = (mem[i]/(1<<4))*(1<<4) + val%(1<<4);
       else
         mem[i] = val%(1<<8);
       val >>= 8;
@@ -506,9 +531,45 @@ add_mem (uint8_t *mem, uint8_t half_bytes, uint64_t val)
   set_mem (mem, half_bytes, ori);
 }
 
+// getter/setter for registers
+// do not use upper 2 bit (register is 3 byte)
+static uint32_t
+get_reg (enum reg_flags flag)
+{
+  if (flag == NOT_REG)
+    return __INVALID;
+  if (flag >= __REGISTER_TABLE_SIZE)
+    return __INVALID;
+  return reg[flag];
+}
+
+static bool
+set_reg (enum reg_flags flag, uint32_t val)
+{
+  if (flag == NOT_REG)
+    return false;
+  if (flag >= __REGISTER_TABLE_SIZE)
+    return false;
+  reg[flag] = val % __REGISTER_SIZE;
+  return true;
+}
+
+static void
+print_register (void)
+{
+  printf ("\tA : %06X X : %06X\n", reg[REG_A], reg[REG_X]);
+  printf ("\tL : %06X PC: %06X\n", reg[REG_L], reg[REG_PC]);
+  printf ("\tB : %06X S : %06X\n", reg[REG_B], reg[REG_S]);
+  printf ("\tT : %06X\n", reg[REG_T]);
+}
+
+// initialize loader (free loader and init)
 void
 init_loader (void)
 {
+  if (bp != NULL)
+    bp->cursor = 0;
+  free_run ();
   free_loader ();
   proglen = 0x0;
   obj_list = malloc (sizeof(struct queue));
@@ -535,20 +596,6 @@ free_loader (void)
       free (pe);
     }
   obj_list = NULL;
-}
-
-// getter/setter for progaddr
-void
-set_progaddr (uint32_t addr)
-{
-  progaddr = addr;
-  set_startaddr (addr);
-}
-
-uint32_t
-get_progaddr (void)
-{
-  return progaddr;
 }
 
 // add obj for loading (pass1)
@@ -801,7 +848,7 @@ run_loader (uint8_t *mem)
             }
         }
     }
-  if (get_startaddr () >= get_proglen () + get_progaddr ())
+  if (!validate_addr (get_startaddr ()))
     {
       printf ("[LOADER] START ADDRESS [%05X] INVALID\n",
               get_startaddr ());
@@ -848,22 +895,19 @@ print_load_map (void)
 }
 
 // check if address has to be stopped by breakpoint
-bool
+uint32_t
 check_bp (uint32_t addr, uint32_t len)
 {
   if (bp == NULL)
-    return false;
+    return __INVALID;
   while (bp->cursor < bp->len && bp->addr[bp->cursor] < addr)
     bp->cursor ++;
   if (bp->cursor == bp->len)
-    return false;
+    return __INVALID;
   if (bp->addr[bp->cursor] >= addr
       && bp->addr[bp->cursor] < addr + len)
-    {
-      bp->cursor ++;
-      return true;
-    }
-  return false;
+    return bp->addr[bp->cursor ++];
+  return __INVALID;
 }
 
 // add another bp
@@ -956,18 +1000,437 @@ init_run (void)
   if (reg == NULL)
     reg = malloc (__REGISTER_TABLE_SIZE * sizeof (uint32_t));
   if (reg == NULL)
-    return false;
+    {
+      puts ("[RUN] MEMORY INSUFFICIENT");
+      return false;
+    }
 
   reg[REG_L] = __BOOT_ADDRESS;
   reg[REG_PC] = get_startaddr ();
   return true;
 }
 
-void
-run (void)
+// check if two registers are valid for specific opcode
+static bool
+check_register (uint8_t opcode, uint8_t r1, uint8_t r2)
 {
+  // CLEAR, TIXR has only one operand
+  if (opcode == 0xB4 || opcode == 0xB8)
+    {
+      if (r2 != 0)
+        {
+          printf ("r2 register is set, ");
+          printf ("but it is not in operand\n");
+          return false;
+        }
+    }
+  // COMPR has both operand
+  if (opcode == 0xA0)
+    {
+      if (get_reg (r2) == __INVALID)
+        {
+          printf ("No such register at r2.\n");
+          return false;
+        }
+    }
+
+  if (get_reg (r1) == __INVALID)
+    {
+      printf ("No such register at r1.\n");
+      return false;
+    }
+  return true;
 }
 
+// check the memory addr for specific opcode
+static bool
+check_address (uint8_t opcode, uint32_t addr, bool is_i)
+{
+  if (is_i)
+    return true;
+  // J, JEQ, JLT, JSUB, RSUB, WD does not reference memory
+  if (opcode == 0x3C || opcode == 0x30 || opcode == 0x38 ||
+      opcode == 0x48 || opcode == 0x4C || opcode == 0xDC)
+    return true;
+  // COMP, LDA, LDB, LDT, STA, STL, STX reference
+  // three adjacent cells
+  if (opcode == 0x88 || opcode == 0x00 || opcode == 0x68 ||
+      opcode == 0x74 || opcode == 0x0C || opcode == 0x14 ||
+      opcode == 0x10)
+    return validate_addr (addr) && validate_addr (addr + 2);
+  return validate_addr (addr);
+}
+
+// get value from memory for specific opcode
+static uint32_t
+get_value (uint8_t opcode, uint8_t *mem)
+{
+  if (opcode == 0x4C)
+    return 0x0;
+  if (opcode == 0x88 || opcode == 0x00 || opcode == 0x68 ||
+      opcode == 0x74 || opcode == 0x0C || opcode == 0x14 ||
+      opcode == 0x10)
+    return get_mem (mem, 6);
+  return get_mem (mem, 2);
+}
+
+// compare two values
+// returns 3 byte (upper 2 bit are always 0)
+static uint32_t
+cmp (uint32_t l, uint32_t r)
+{
+  l %= __REGISTER_SIZE;
+  r %= __REGISTER_SIZE;
+  if (l > r) return 1;
+  else if (l == r) return 0;
+
+  // l < r
+  l = -1;
+  l %= __REGISTER_SIZE;
+  return l;
+}
+
+// parse t from unsigned to sign
+// len is half byte length (value is dependent with length)
+static int
+parse_uint (uint32_t t, int len)
+{
+  char tmp[16];
+  int tmplen;
+  sprintf (tmp, "%x", t);
+  tmplen = strlen (tmp);
+  if (len > tmplen)
+    {
+      int diff = len - tmplen;
+      int i;
+      for (i=len; i>=0; --i)
+        tmp[i+diff] = tmp[i];
+      for (i=0; i<diff; ++i)
+        tmp[i] = '0';
+    }
+  else if (len < tmplen)
+    {
+      int diff = tmplen - len;
+      int i;
+      for (i=diff; i<=len; ++i)
+        tmp[i-diff] = tmp[i];
+    }
+  return parse_chars_hex (tmp, strlen (tmp), true);
+}
+
+// running functions for current loaded program
+void
+run (uint8_t *mem)
+{
+  while (true)
+    {
+      // fetch & decode
+      uint32_t curr_addr = get_reg (REG_PC);
+      if (curr_addr == __BOOT_ADDRESS)
+        {
+          print_register ();
+          puts ("End Program");
+          return ;
+        }
+      if (!validate_addr (curr_addr))
+        {
+          printf ("Segmentation Fault at %06X\n", curr_addr);
+          return ;
+        }
+
+      uint8_t opcode = get_mem (&mem[curr_addr], 2);
+      bool is_sic = (opcode % 4 == 0);
+      bool is_immediate = (opcode % 4 == 1);
+      bool is_indirect = (opcode % 4 == 2);
+      opcode = (opcode / 4) * 4;
+
+      // FORMAT 1/2
+      if (is_sic)
+        {
+          enum format_flags fflag = find_opformat (opcode);
+          if (fflag != FORMAT_1 && fflag != FORMAT_2)
+            {
+              printf ("Corrupted instruction at %06X\n",
+                      curr_addr);
+              printf ("Is not SIC instruction, but ");
+              printf ("n flag and i flag are not both on.\n");
+              return ;
+            }
+
+          // FORMAT 1
+          if (fflag == FORMAT_1)
+            {
+              // check for breakpoints
+              uint32_t point = check_bp (curr_addr, 1);
+              if (point != __INVALID)
+                {
+                  print_register ();
+                  printf ("Stop at checkpoint[%x]\n", point);
+                  break;
+                }
+              set_reg (REG_PC, get_reg (REG_PC) + 1);
+            }
+          // FORMAT 2
+          else
+            {
+              // check for breakpoints
+              uint32_t point = check_bp (curr_addr, 2);
+              if (point != __INVALID)
+                {
+                  print_register ();
+                  printf ("Stop at checkpoint[%x]\n", point);
+                  break;
+                }
+              set_reg (REG_PC, get_reg (REG_PC) + 2);
+              uint8_t r1 = get_mem (&mem[curr_addr+1], 2) / 16;
+              uint8_t r2 = get_mem (&mem[curr_addr+1], 2) % 16;
+
+              if (!check_register (opcode, r1, r2))
+                {
+                  printf ("Corrupted instruction at %06X\n",
+                          curr_addr);
+                  return ;
+                }
+
+              // execute
+              // CLEAR r1
+              if (opcode == 0xB4)
+                {
+                  set_reg (r1, 0);
+                }
+
+              // COMPR r1, r2
+              if (opcode == 0xA0)
+                {
+                  set_reg (REG_SW, cmp (get_reg (r1),
+                                        get_reg (r2)));
+                }
+
+              // TIXR r1
+              if (opcode == 0xB8)
+                {
+                  set_reg (REG_X, get_reg (REG_X) + 1);
+                  set_reg (REG_SW, cmp (get_reg (REG_X),
+                                        get_reg (r1)));
+                }
+            }
+        }
+      // FORMAT 3/4
+      else
+        {
+          enum format_flags fflag = find_opformat (opcode);
+          if (fflag != FORMAT_3)
+            {
+              printf ("Corrupted instruction at %06X\n",
+                      curr_addr);
+              printf ("n flag or i flag are on, but it is ");
+              printf ("not Format 3/4 SIC/XE Instruction.\n");
+              return ;
+            }
+
+          uint8_t xbpe = get_mem (&mem[curr_addr + 1], 2) / 16;
+          bool is_x = (xbpe >= 8);
+          bool is_b = ((xbpe % 8) >= 4);
+          bool is_p = ((xbpe % 4) >= 2);
+          bool is_e = xbpe % 4 == 1;
+          uint32_t addr = 0x0;
+          uint32_t value = 0x0;
+
+          if (is_e)
+            fflag = FORMAT_4;
+
+          // check for breakpoints
+          if (!is_e)
+            {
+              uint32_t point = check_bp (curr_addr, 3);
+              if (point != __INVALID)
+                {
+                  print_register ();
+                  printf ("Stop at checkpoint[%x]\n", point);
+                  break;
+                }
+            }
+          else
+            {
+              uint32_t point = check_bp (curr_addr, 4);
+              if (point != __INVALID)
+                {
+                  print_register ();
+                  printf ("Stop at checkpoint[%x]\n", point);
+                  break;
+                }
+            }
+
+          if (is_x)
+            addr += parse_uint (get_reg (REG_X), 6);
+          // FORMAT 3
+          if (fflag == FORMAT_3)
+            {
+              set_reg (REG_PC, get_reg (REG_PC) + 3);
+
+              if (is_b && is_p)
+                {
+                  printf ("Corrupted instruction at %06X\n",
+                          curr_addr);
+                  printf ("b flag and p flag are both on.\n");
+                  return ;
+                }
+
+              addr +=
+                parse_uint (get_mem (&mem[curr_addr+1],3), 3);
+              if (is_b)
+                addr += parse_uint (get_reg (REG_B), 6);
+              if (is_p)
+                addr += parse_uint (get_reg (REG_PC), 6);
+            }
+          // FORMAT 4
+          else
+            {
+              set_reg (REG_PC, get_reg (REG_PC) + 4);
+              if (is_b || is_p)
+                {
+                  printf ("Corrupted instruction at %06X\n",
+                          curr_addr);
+                  puts("b flag or p flag are set on format 4");
+                  return ;
+                }
+              addr +=
+                parse_uint (get_mem (&mem[curr_addr+1],5), 5);
+            }
+          if (!check_address (opcode, addr, is_immediate))
+            {
+              printf ("Segmentation Fault at %06X\n", curr_addr);
+              return ;
+            }
+
+          // ref once more
+          if (is_indirect)
+            {
+              addr = parse_uint (get_mem (&mem[addr], 6), 6);
+              if (!check_address (opcode, addr, false))
+                {
+                  printf ("Segmentation Fault at %06X\n",
+                          curr_addr);
+                  return ;
+                }
+            }
+
+          // if not immediate, ref addr
+          if (is_immediate)
+            value = addr;
+          else
+            value = get_value (opcode, &mem[addr]);
+
+          // execute
+          // COMP
+          if (opcode == 0x88)
+            {
+              set_reg (REG_SW, cmp (get_reg (REG_A), value));
+            }
+
+          // J
+          if (opcode == 0x3C)
+            {
+              set_reg (REG_PC, addr);
+            }
+
+          // JEQ
+          if (opcode == 0x30)
+            {
+              if (cmp (get_reg (REG_SW), 0) == 0)
+                set_reg (REG_PC, addr);
+            }
+
+          // JLT
+          if (opcode == 0x38)
+            {
+              if (cmp (get_reg (REG_SW), -1) == 0)
+                set_reg (REG_PC, addr);
+            }
+
+          // JSUB
+          if (opcode == 0x48)
+            {
+              set_reg (REG_L, get_reg (REG_PC));
+              set_reg (REG_PC, addr);
+            }
+
+          // LDA
+          if (opcode == 0x00)
+            {
+              set_reg (REG_A, value);
+            }
+
+          // LDB
+          if (opcode == 0x68)
+            {
+              set_reg (REG_B, value);
+            }
+
+          // LDCH
+          if (opcode == 0x50)
+            {
+              set_mem (((uint8_t*) &reg[REG_A]) + 3, 2, value);
+              reg[REG_A] %= __REGISTER_SIZE;
+            }
+
+          // LDT
+          if (opcode == 0x74)
+            {
+              set_reg (REG_T, value);
+            }
+
+          // RD
+          if (opcode == 0x78)
+            {
+              set_reg (REG_A, 0);
+            }
+
+          // RSUB
+          if (opcode == 0x4C)
+            {
+              set_reg (REG_PC, get_reg (REG_L));
+            }
+
+          // STA
+          if (opcode == 0x0C)
+            {
+              set_mem (&mem[addr], 6, get_reg (REG_A));
+            }
+
+          // STCH
+          if (opcode == 0x54)
+            {
+              set_mem (&mem[addr], 2, get_reg (REG_A));
+            }
+
+          // STL
+          if (opcode == 0x14)
+            {
+              set_mem (&mem[addr], 6, get_reg (REG_L));
+            }
+
+          // STX
+          if (opcode == 0x10)
+            {
+              set_mem (&mem[addr], 6, get_reg (REG_X));
+            }
+
+          // TD
+          if (opcode == 0xE0)
+            {
+              set_reg (REG_SW, -1);
+            }
+
+          // WD
+          if (opcode == 0xDC)
+            {
+            }
+        }
+    }
+}
+
+// free running environment
 void
 free_run (void)
 {

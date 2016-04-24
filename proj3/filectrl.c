@@ -256,8 +256,8 @@ find_size_oplist (char *cmd)
   return 0;
 }
 
-uint8_t
-find_optype (uint8_t opcode)
+enum format_flags
+find_opformat (uint8_t opcode)
 {
   return optype[opcode/4];
 }
@@ -325,7 +325,7 @@ init_oplist (const char *filename)
 
       code = str_hash (cmd) % __TABLE_SIZE;
       q_insert (&oplist[code], &(oe->elem));
-      optype[code/4] = oe->format[0] - '0';
+      optype[oe->code/4] = oe->format[0] - '0';
     }
   return true;
 

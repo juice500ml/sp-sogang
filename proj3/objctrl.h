@@ -15,12 +15,12 @@ bool add_obj_loader (const char *filename);
 bool run_loader (uint8_t *mem);
 void free_loader (void);
 void print_load_map (void);
-bool check_bp (uint32_t addr, uint32_t len);
+uint32_t check_bp (uint32_t addr, uint32_t len);
 bool add_bp (uint32_t addr);
 void print_bp (void);
 void free_bp (void);
 bool init_run (void);
-void run (void);
+void run (uint8_t *mem);
 void free_run (void);
 
 struct prog_elem
