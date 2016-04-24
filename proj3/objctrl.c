@@ -780,10 +780,17 @@ run_obj_loader (uint8_t *mem)
                   printf ("LINE [%s] FAILED\n", line);
                   return false;
                 }
-              int saddr = parse_chars_hex (line+1, 6, false);
+              int saddr = parse_chars_hex (line+1, 6, false)
+                          + prog->obj_addr;
               set_startaddr (saddr);
             }
         }
+    }
+  if (get_startaddr () >= get_proglen () + get_progaddr ())
+    {
+      printf ("[LOADER] START ADDRESS %05X TOO BIG\n",
+              get_startaddr ());
+      return false;
     }
   return true;
 }
@@ -829,6 +836,8 @@ print_load_map (void)
 bool
 check_bp (uint32_t addr, uint32_t len)
 {
+  if (bp == NULL)
+    return false;
   while (bp->cursor < bp->len && bp->addr[bp->cursor] < addr)
     bp->cursor ++;
   if (bp->cursor == bp->len)
