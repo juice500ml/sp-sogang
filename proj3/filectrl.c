@@ -14,8 +14,10 @@
 #define __TABLE_SIZE 20
 
 static const int __READ_SIZE = 128;
+static const int __OPTYPE_SIZE = 64;
 static struct queue *oplist;
 static struct queue *symbol_table;
+uint8_t *optype;
 static const char *__REGISTER_TABLE[__REGISTER_TABLE_SIZE] = {
     "A", "X", "L", "B", "S", "T", "F", "", "PC", "SW"
 };
@@ -150,6 +152,11 @@ free_oplist (void)
     }
   free (oplist);
   oplist = NULL;
+  if (optype != NULL)
+    {
+      free (optype);
+      optype = NULL;
+    }
 }
 
 void
@@ -249,6 +256,12 @@ find_size_oplist (char *cmd)
   return 0;
 }
 
+uint8_t
+find_optype (uint8_t opcode)
+{
+  return optype[opcode/4];
+}
+
 bool
 init_oplist (const char *filename)
 {
@@ -265,7 +278,8 @@ init_oplist (const char *filename)
 
   oplist = malloc (sizeof(struct queue)*__TABLE_SIZE);
   input = malloc(sizeof(char)*__READ_SIZE);
-  if (oplist == NULL || input == NULL)
+  optype = malloc (sizeof(uint8_t)*__OPTYPE_SIZE);
+  if (oplist == NULL || input == NULL || optype == NULL)
     {
       puts("[OPCODE] MEMORY INSUFFICIENT");
       goto memory_clear;
@@ -273,6 +287,8 @@ init_oplist (const char *filename)
 
   for (i=0; i<__TABLE_SIZE; ++i)
     q_init (&oplist[i]);
+  for (i=0; i<__OPTYPE_SIZE; ++i)
+    optype[i] = 0;
 
   // opcode hash table generation
   while (fgets(input, __READ_SIZE, fp) != NULL)
@@ -309,6 +325,7 @@ init_oplist (const char *filename)
 
       code = str_hash (cmd) % __TABLE_SIZE;
       q_insert (&oplist[code], &(oe->elem));
+      optype[code/4] = oe->format[0] - '0';
     }
   return true;
 
