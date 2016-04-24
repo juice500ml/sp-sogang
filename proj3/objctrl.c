@@ -447,13 +447,16 @@ find_ctr_name (struct queue *obj_file)
   return name;
 }
 
-// add val to mem pointing (len half bytes)
-static void
-add_mem (uint8_t *mem, int half_bytes, int val)
+// get val from mem
+static uint64_t
+get_mem (uint8_t *mem, uint8_t half_bytes)
 {
-  int i;
-  int ori = 0;
-  int len = half_bytes;
+  uint8_t len = half_bytes;
+  uint64_t ori = 0;
+  int i = 0;
+
+  if (len > 128)
+    puts ("[ERROR][DEBUG] get_mem half_bytes TOO BIG");
 
   for (i = 0; i < (len+1)/2; ++i)
     {
@@ -463,15 +466,39 @@ add_mem (uint8_t *mem, int half_bytes, int val)
       else
         ori += mem[i];
     }
-  ori += val;
+  return ori;
+}
+
+// set val for mem
+static void
+set_mem (uint8_t *mem, uint8_t half_bytes, uint64_t val)
+{
+  uint8_t len = half_bytes;
+  int i = 0;
+
+  if (len > 128)
+    puts ("[ERROR][DEBUG] get_mem half_bytes TOO BIG");
+
+  if (len == 0)
+    return;
+
   for (i = (len-1)/2; i >= 0; --i)
     {
       if (i==0 && len%2==1)
-        mem[i] = (mem[i]/(1<<4))*(1<<4) + ori%(1<<8);
+        mem[i] = (mem[i]/(1<<4))*(1<<4) + val%(1<<8);
       else
-        mem[i] = ori%(1<<8);
-      ori >>= 8;
+        mem[i] = val%(1<<8);
+      val >>= 8;
     }
+}
+
+// add val to mem pointing (len half bytes)
+static void
+add_mem (uint8_t *mem, uint8_t half_bytes, uint64_t val)
+{
+  uint64_t ori = get_mem (mem, half_bytes);
+  ori += val;
+  set_mem (mem, half_bytes, ori);
 }
 
 void
@@ -897,4 +924,9 @@ free_bp (void)
       free (bp);
       bp = NULL;
     }
+}
+
+void
+run (void)
+{
 }

@@ -491,7 +491,12 @@ main(void)
           break;
 
         case CMD_RUN:
-          // TODO
+          if(sscanf(input, "%*s %1s", check) == 1)
+            {
+              puts("WRONG INSTRUCTION");
+              break;
+            }
+          run ();
           is_valid_cmd = true;
 
           break;

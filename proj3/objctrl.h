@@ -19,6 +19,7 @@ bool check_bp (uint32_t addr, uint32_t len);
 bool add_bp (uint32_t addr);
 void print_bp (void);
 void free_bp (void);
+void run (void);
 
 struct prog_elem
 {
