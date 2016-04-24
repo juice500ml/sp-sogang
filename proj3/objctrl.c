@@ -7,11 +7,16 @@
 
 #define _SAME_STR(s1,s2) (strcmp(s1,s2)==0)
 
+#define __REGISTER_TABLE_SIZE 10
+#define __BOOT_ADDRESS ((1 << 21) - 1)
+
+
 static uint32_t progaddr = 0x0;
 static uint32_t startaddr = 0x0;
 static uint32_t proglen = 0x0;
 static struct queue *obj_list = NULL;
 static struct breakpoint *bp = NULL;
+static uint32_t *reg = NULL;
 
 // getter/setter for startaddr
 static void
@@ -610,21 +615,22 @@ add_obj_loader (const char *filename)
 
 // load objects (pass2)
 bool
-run_obj_loader (uint8_t *mem)
+run_loader (uint8_t *mem)
 {
   if (mem == NULL)
     {
-      puts ("[ERROR][DEBUG] NO mem AT run_obj_loader");
+      puts ("[ERROR][DEBUG] NO mem AT run_loader");
       return false;
     }
   if (obj_list == NULL)
     {
-      puts ("[ERROR][DEBUG] NO obj_list AT run_obj_loader");
+      puts ("[ERROR][DEBUG] NO obj_list AT run_loader");
       return false;
     }
 
   struct q_elem *e = q_begin (obj_list);
   bool is_end_fixed = false;
+  bool is_start_fixed = false;
   for (; e != q_end (obj_list); e = q_next (e))
     {
       struct prog_elem *prog =
@@ -780,15 +786,24 @@ run_obj_loader (uint8_t *mem)
                   printf ("LINE [%s] FAILED\n", line);
                   return false;
                 }
-              int saddr = parse_chars_hex (line+1, 6, false)
-                          + prog->obj_addr;
+              uint32_t saddr =
+                parse_chars_hex (line+1, 6, false)
+                + prog->obj_addr;
+              if (is_start_fixed && get_startaddr () != saddr)
+                {
+                  printf ("[%s] MULTIPLE START", prog->ctrl_name);
+                  printf (" ADDRESSES AT END RECORD\n");
+                  printf ("LINE [%s] FAILED\n", line);
+                  return false;
+                }
               set_startaddr (saddr);
+              is_start_fixed = true;
             }
         }
     }
   if (get_startaddr () >= get_proglen () + get_progaddr ())
     {
-      printf ("[LOADER] START ADDRESS %05X TOO BIG\n",
+      printf ("[LOADER] START ADDRESS [%05X] INVALID\n",
               get_startaddr ());
       return false;
     }
@@ -935,7 +950,28 @@ free_bp (void)
     }
 }
 
+bool
+init_run (void)
+{
+  if (reg == NULL)
+    reg = malloc (__REGISTER_TABLE_SIZE * sizeof (uint32_t));
+  if (reg == NULL)
+    return false;
+
+  reg[REG_L] = __BOOT_ADDRESS;
+  reg[REG_PC] = get_startaddr ();
+  return true;
+}
+
 void
 run (void)
 {
+}
+
+void
+free_run (void)
+{
+  if (reg != NULL)
+    free (reg);
+  reg = NULL;
 }

@@ -439,7 +439,7 @@ main(void)
               puts("WRONG INSTRUCTION");
               break;
             }
-          if (i < 0 || i >= __MEMORY_SIZE)
+          if (i < 0 || i >= __MEMORY_SIZE - 1)
             {
               puts("INVALID PROGRAM ADDRESS");
               break;
@@ -472,13 +472,14 @@ main(void)
           // if normally added
           if (tok == NULL)
             {
-              if (get_proglen()+get_progaddr() >= __MEMORY_SIZE)
+              // address __MEMORY_SIZE is reserved for boot
+              if (get_proglen()+get_progaddr()>=__MEMORY_SIZE-1)
                 {
                   puts ("PROGRAM IS TOO BIG: LOADER FAILED");
                   free_loader ();
                   break;
                 }
-              if (!run_obj_loader (mem))
+              if (!run_loader (mem))
                 {
                   puts ("LOADER FAILED");
                   free_loader ();
@@ -494,6 +495,12 @@ main(void)
           if(sscanf(input, "%*s %1s", check) == 1)
             {
               puts("WRONG INSTRUCTION");
+              break;
+            }
+          if (!init_run ())
+            {
+              puts ("RUN FAILED");
+              free_run ();
               break;
             }
           run ();
@@ -528,7 +535,7 @@ main(void)
               puts("WRONG INSTRUCTION");
               break;
             }
-          if (start >= __MEMORY_SIZE)
+          if (start >= __MEMORY_SIZE - 1)
             {
               puts ("INVALID BREAKPOINT ADDRESS");
               break;
@@ -586,6 +593,7 @@ memory_clear:
   free_oplist ();
   free_loader ();
   free_bp ();
+  free_run ();
 
   return 0;
 }
