@@ -22,7 +22,7 @@ url_fp = open('URL.txt', 'w')
 
 while bfs_len != 0:
     for _ in range(bfs_len):
-        l = bfs_links.pop()
+        l = bfs_links.popleft()
         r = requests.get(l)
         if not r.ok:
             continue
@@ -59,7 +59,5 @@ while bfs_len != 0:
             links.add(tmplink)
             bfs_links.append(tmplink)
     bfs_len = len(bfs_links)
-    if bfs_len == 0:
-        break
 
 url_fp.close()
