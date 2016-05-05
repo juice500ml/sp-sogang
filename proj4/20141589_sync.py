@@ -2,15 +2,6 @@ import requests
 from bs4 import BeautifulSoup
 from collections import deque
 
-"""
-r = requests.get('http://cspro.sogang.ac.kr/~gr120160213')
-soup = BeautifulSoup(r.text, 'html.parser')
-
-pall = soup.find_all('p')
-for i in pall:
-    print(i.text)
-"""
-
 links = set()
 bfs_links = deque()
 
