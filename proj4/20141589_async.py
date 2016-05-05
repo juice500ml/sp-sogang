@@ -47,7 +47,7 @@ def crawl(url):
 links = set()
 bfs_links = list()
 url_fp = None
-pool = Pool()
+pool = Pool(2)
 
 links.add('http://cspro.sogang.ac.kr/~gr120160213/index.html')
 bfs_links.append('http://cspro.sogang.ac.kr/~gr120160213/index.html')
