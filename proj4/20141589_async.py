@@ -1,35 +1,21 @@
 import requests
-from bs4 import BeautifulSoup
-from collections import deque
+from bs4 import BeautifulSoup, Comment
 from multiprocessing import Pool
 
+ROOT_URL = 'http://cspro.sogang.ac.kr/~gr120160213/'
+
 def crawl(url):
-    l = url
-    ret = []
-    r = requests.get(l)
+    ret_links = []
+    r = requests.get(url)
     if not r.ok:
-        return '', []
+        return None
 
-    filename = ''
-    if l[-1] == '/':
-        spl = l.rsplit('/', 2)
-        l = spl[0]
-        filename = spl[1]
-    else:
-        spl = l.rsplit('/', 1)
-        l = spl[0]
-        filename = spl[1]
-    l += '/'
-    
-    retlink = '\nhttp://cspro.sogang.ac.kr/~gr120160213/' + filename
-    
-    filename = 'Output_' + filename.split('.')[0] + '.txt'
-    fp = open(filename, 'w')
-    fp.write(r.text)
-    fp.close()
-
+    ret_link = url
     soup = BeautifulSoup(r.text, 'html.parser')
+    ret_text = ''.join([str(i) for i in soup.strings if not isinstance(i, Comment)])
+
     pall = soup.find_all('a')
+
     for p in pall:
         tmplink = p['href'].strip('/ \t\n\r')
         if not tmplink:
@@ -37,37 +23,43 @@ def crawl(url):
         if tmplink[0] == '#' or tmplink[0] == '?':
             continue
         if tmplink[0:7] != 'http://':
-            tmplink = l + tmplink
+            tmplink = ROOT_URL + tmplink
+
         if tmplink in links:
             continue
-        ret.append(tmplink)
-    return retlink, ret
+        ret_links.append(tmplink)
+
+    return ret_link, ret_links, ret_text
 
 
-links = set()
-bfs_links = list()
-url_fp = None
-pool = Pool(2)
+if __name__ == '__main__':
+    links = set()
+    bfs_links = list()
+    url_fp = open('URL.txt', 'w')
+    visit_index = 0
+    pool = Pool(2)
 
-links.add('http://cspro.sogang.ac.kr/~gr120160213/index.html')
-bfs_links.append('http://cspro.sogang.ac.kr/~gr120160213/index.html')
+    links.add(ROOT_URL + 'index.html')
+    bfs_links.append(ROOT_URL + 'index.html')
 
-while bfs_links:
-    ret_list = pool.map(crawl, bfs_links)
+    while bfs_links:
+        ret_list = pool.map(crawl, bfs_links)
 
-    for ret in ret_list:
-        s, ret_links = ret
-        
-        if not url_fp:
-            url_fp = open('URL.txt','w')
-            s = s[1:]
-        url_fp.write(s)
-        
-        bfs_links = list()
-        for l in ret_links:
-            if l and l not in links:
-                bfs_links.append(l)
-                links.add(l)
+        for ret in ret_list:
+            if not ret:
+                continue
 
-if not url_fp:
-    url_fp.close()
+            ret_link, ret_links, ret_text = ret
+
+            if visit_index != 0:
+                ret_link = '\n' + ret_link
+            url_fp.write(ret_link)
+            with open('Output_%04d.txt' % visit_index, 'w') as fp:
+                fp.write(ret_text)
+            visit_index += 1
+
+            bfs_links = list()
+            for l in ret_links:
+                if l and l not in links:
+                    bfs_links.append(l)
+                    links.add(l)
