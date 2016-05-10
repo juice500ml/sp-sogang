@@ -1,0 +1,147 @@
+# 5/10 16:30 AT CSPRO
+SYNC
+
+real  0m9.987s
+user  0m5.915s
+sys 0m0.894s
+
+
+ASYNC WITH 1 workers
+
+real  0m10.892s
+user  0m6.227s
+sys 0m1.144s
+
+
+ASYNC WITH 2 workers
+
+real  0m10.923s
+user  0m6.488s
+sys 0m1.300s
+
+
+ASYNC WITH 3 workers
+
+real  0m8.900s
+user  0m6.792s
+sys 0m1.451s
+
+
+ASYNC WITH 4 workers
+
+real  0m8.415s
+user  0m6.996s
+sys 0m1.601s
+
+
+ASYNC WITH 5 workers
+
+real  0m7.939s
+user  0m7.268s
+sys 0m1.795s
+
+
+ASYNC WITH 6 workers
+
+real  0m7.933s
+user  0m7.535s
+sys 0m1.965s
+
+
+ASYNC WITH 7 workers
+
+real  0m7.958s
+user  0m7.765s
+sys 0m2.157s
+
+
+ASYNC WITH 8 workers
+
+real  0m8.012s
+user  0m8.023s
+sys 0m2.305s
+
+
+ASYNC WITH 9 workers
+
+real  0m8.000s
+user  0m8.248s
+sys 0m2.484s
+
+
+ASYNC WITH 10 workers
+
+real  0m8.132s
+user  0m8.567s
+sys 0m2.623s
+
+
+ASYNC WITH 11 workers
+
+real  0m8.039s
+user  0m8.818s
+sys 0m2.799s
+
+
+ASYNC WITH 12 workers
+
+real  0m8.178s
+user  0m9.176s
+sys 0m2.983s
+
+
+ASYNC WITH 13 workers
+
+real  0m8.715s
+user  0m9.500s
+sys 0m3.190s
+
+
+ASYNC WITH 14 workers
+
+real  0m8.399s
+user  0m9.737s
+sys 0m3.331s
+
+
+ASYNC WITH 15 workers
+
+real  0m8.224s
+user  0m10.053s
+sys 0m3.513s
+
+
+ASYNC WITH 16 workers
+
+real  0m8.312s
+user  0m10.334s
+sys 0m3.689s
+
+
+ASYNC WITH 17 workers
+
+real  0m8.215s
+user  0m10.541s
+sys 0m3.878s
+
+
+ASYNC WITH 18 workers
+
+real  0m8.246s
+user  0m10.894s
+sys 0m4.039s
+
+
+ASYNC WITH 19 workers
+
+real  0m8.366s
+user  0m11.163s
+sys 0m4.224s
+
+
+ASYNC WITH 20 workers
+
+real  0m8.503s
+user  0m11.385s
+sys 0m4.372s
+

@@ -1,7 +1,9 @@
 import requests
 from bs4 import BeautifulSoup, Comment
 from multiprocessing import Pool
+import gc
 
+gc.disable()
 ROOT_URL = 'http://cspro.sogang.ac.kr/~gr120160213/'
 
 def crawl(url):
@@ -37,7 +39,7 @@ if __name__ == '__main__':
     bfs_links = list()
     url_fp = open('URL.txt', 'w')
     visit_index = 0
-    pool = Pool(2)
+    pool = Pool(6)
 
     links.add(ROOT_URL + 'index.html')
     bfs_links.append(ROOT_URL + 'index.html')
