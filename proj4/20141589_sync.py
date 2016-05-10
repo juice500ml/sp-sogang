@@ -27,7 +27,7 @@ while bfs_len != 0:
 
         fp = open('Output_%04d.txt' % visit_index, 'w')
         visit_index += 1
-        fp.write(''.join([str(i) for i in soup.strings if not isinstance(i, Comment)]))
+        fp.write(soup.text)
         fp.close()
 
         pall = soup.find_all('a')

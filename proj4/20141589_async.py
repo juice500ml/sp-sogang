@@ -14,7 +14,7 @@ def crawl(url):
 
     ret_link = url
     soup = BeautifulSoup(r.text, 'html.parser')
-    ret_text = ''.join([str(i) for i in soup.strings if not isinstance(i, Comment)])
+    ret_text = soup.text
 
     pall = soup.find_all('a')
 
