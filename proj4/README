@@ -1,0 +1,6 @@
+  1. How to build
+Type "python 20141589.py". Its results are in .txt format.
+
+  2. Output format
+    URL.txt : Link name of successfully visited URL
+    Output_0000.txt : Output file of visited URL
