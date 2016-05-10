@@ -10,7 +10,7 @@ bfs_links = deque()
 links.add(ROOT_URL + 'index.html')
 bfs_links.append(ROOT_URL + 'index.html')
 bfs_len = 1
-visit_index = 0
+visit_index = 1
 
 url_fp = open('URL.txt', 'w')
 

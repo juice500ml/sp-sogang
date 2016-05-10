@@ -51,7 +51,7 @@ if __name__ == '__main__':
     links = set()
     bfs_links = list()
     url_fp = open('URL.txt', 'w')
-    visit_index = 0
+    visit_index = 1
     pool = Pool(args.pool_size)
 
     links.add(ROOT_URL + 'index.html')
@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
             ret_link, ret_links, ret_text = ret
 
-            if visit_index != 0:
+            if visit_index != 1:
                 ret_link = '\n' + ret_link
             url_fp.write(ret_link)
             with open('Output_%04d.txt' % visit_index, 'w') as fp:
