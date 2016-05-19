@@ -5,7 +5,7 @@ curr_count = 0
 ngram = None
 
 for line in sys.stdin:
-    ngram, count = line.strip().split('\t', 1)
+    ngram, count = line.split('\t', 1)
     try:
         count = int(count)
     except ValueError:
