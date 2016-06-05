@@ -21,6 +21,7 @@ def writeDB(ngram):
             try:
                 item = tbl.get_item(words = elem[0])
                 item['counts'] += elem[1]
+                item.save()
             except ItemNotFound:
                 tbl.put_item(data = {'words': elem[0], 'counts': elem[1]})
 
