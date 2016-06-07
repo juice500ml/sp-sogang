@@ -3,7 +3,7 @@ from boto.dynamodb2.exceptions import ItemNotFound, ValidationException
 
 execfile('20141589.conf')
 
-myTable = Table('project6')
+myTable = Table('project6-20141589')
 while True:
     try:
         s = raw_input('Input word combination (Ctrl+D to exit) : ')
