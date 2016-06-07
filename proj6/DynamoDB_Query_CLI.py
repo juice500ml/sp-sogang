@@ -6,7 +6,7 @@ execfile('20141589.conf')
 myTable = Table('project6-20141589')
 while True:
     try:
-        s = raw_input('Input word combination (Ctrl+D to exit) : ')
+        s = raw_input('Input word combination (Ctrl+d to exit) : ')
     except EOFError:
         print ''
         break

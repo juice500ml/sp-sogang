@@ -1,0 +1,30 @@
+** For Users **
+Type ```python DynamoDB_Query_CLI.py``` for user query.
+You can use input word combination to check of table 'project6-20141589'.
+You can change the name and configuration file(currently 20141589.conf) for different tables.
+Type ```Ctrl+d``` (EOF) to exit.
+
+** For Admins **
+Type ```python DynamoDB_Import_S3.py``` for table administration.
+You can change configuration file(currently 20141589.conf) for other tables or buckets.
+Currently bucket for text file inputs (word combination\tcount) are from 'sp20141589-proj6' bucket.
+Currently table for saving is 'project6-20141589'.
+Note that 20141589.conf is not in public repo.
+
+** Formatting for 20141589.conf **
+```
+from boto import config
+
+config.add_section('Boto')
+config.add_section('Credentials')
+config.add_section('DynamoDB')
+
+config.set('Boto', 'is_secure', 'False')
+
+# AWS Settings
+config.set('Credentials', 'aws_access_key_id', {{ YOUR AWS ACCESS KEY ID }})
+config.set('Credentials', 'aws_secret_access_key', {{ YOUR AWS SECRET ACCESS KEY }})
+
+# DynamoDB Settings
+config.set('DynamoDB', 'region', {{ YOUR REGION }})
+```
