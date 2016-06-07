@@ -1,3 +1,6 @@
+** WARNING **
+Configuration file is not in repo. You have to write your own configuration file. 
+
 ** For Users **
 Type ```python DynamoDB_Query_CLI.py``` for user query.
 You can use input word combination to check of table 'project6-20141589'.
@@ -11,7 +14,7 @@ Currently bucket for text file inputs (word combination\tcount) are from 'sp2014
 Currently table for saving is 'project6-20141589'.
 Note that 20141589.conf is not in public repo.
 
-** Formatting for 20141589.conf **
+** Example formatting for configuration file (20141589.conf) **
 ```
 from boto import config
 
